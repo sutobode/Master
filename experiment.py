@@ -17,12 +17,20 @@ STRATEGY_MAP = {
 
 
 def parse_args():
-    p = argparse.ArgumentParser()
-    p.add_argument('--instance_dir', default='benchmarks/mc_instances/lee_mc')
-    p.add_argument('--cranes', type=int, nargs='+', default=[2, 3])
-    p.add_argument('--strategies', nargs='+', default=['S1', 'S2', 'S3', 'S4'])
-    p.add_argument('--max_instances', type=int, default=None)
+    p = argparse.ArgumentParser(description='M-CRP Zero-shot Transfer Analysis')
+    p.add_argument('--instance_dir', default='benchmarks/mc_instances/lee_mc',
+                   help='Directory containing M-CRP instance files')
+    p.add_argument('--cranes', type=int, nargs='+', default=[2, 3],
+                   help='Number of cranes to evaluate (e.g., 2 3)')
+    p.add_argument('--strategies', nargs='+', default=['S1', 'S2', 'S3', 'S4'],
+                   help='Strategies: S1=RoundRobin S2=ZoneSplit S3=LoadBalance S4=GreedyOptimal')
+    p.add_argument('--max_instances', type=int, default=None,
+                   help='Limit number of instances (for quick testing)')
     p.add_argument('--seed', type=int, default=1234)
+    p.add_argument('--output', default=None,
+                   help='Output CSV path (default: results/mcrp_experiment_TIMESTAMP.csv)')
+    p.add_argument('--quick', action='store_true',
+                   help='Quick test: 3 instances x 2 cranes x 2 strategies (12 runs)')
     return p.parse_args()
 
 
@@ -133,10 +141,17 @@ def run_experiment(args):
 
 if __name__ == '__main__':
     args = parse_args()
+
+    if args.quick:
+        print('=== QUICK MODE: 3 instances, 2 cranes, 2 strategies ===')
+        args.max_instances = 3
+        args.cranes = [2]
+        args.strategies = ['S1', 'S2']
+
     os.makedirs('results', exist_ok=True)
     df = run_experiment(args)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    path = f'results/mcrp_experiment_{timestamp}.csv'
+    path = args.output or f'results/mcrp_experiment_{timestamp}.csv'
     df.to_csv(path, index=False)
     print(f'Saved: {path}')
 
