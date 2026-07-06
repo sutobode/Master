@@ -33,31 +33,29 @@ from baselines.lowerbound import get_wt_lb
 
 
 def compute_lb_mc(x, n_bays, n_rows, n_tiers, n_cranes):
-    if x.dim() == 4:
-        batch = x.shape[0]
-        x_2d = x.reshape(batch, -1, n_tiers)
-    else:
-        batch = x.shape[0]
-        x_2d = x
+    if x.dim() != 4:
+        raise ValueError(f'Expected 4D input (batch, n_bays, n_rows, n_tiers), got {x.dim()}D')
+    batch = x.shape[0]
 
     lbs = []
     for i in range(batch):
-        instance = x_2d[i:i+1]
-        lb_single = get_wt_lb(instance)
+        instance_4d = x[i:i+1, :, :, :]
+        lb_single = get_wt_lb(instance_4d)
 
-        n_reloc = _count_mandatory_relocations(instance)
+        instance_2d = instance_4d.reshape(1, -1, n_tiers)
+        n_reloc = _count_mandatory_relocations(instance_2d)
         min_reloc_unit = 2 * 1.2 + 30
         lb_reloc_total = n_reloc * min_reloc_unit
-        lb_reloc_per_crane = lb_reloc_total / n_cranes
+        lb_retrieval = lb_single - lb_reloc_total
 
-        reloc_per_bay = _count_relocations_per_bay(instance, n_bays, n_rows)
+        reloc_per_bay = _count_relocations_per_bay(instance_2d, n_bays, n_rows)
         total_relocs = sum(reloc_per_bay)
         max_per_bay = max(reloc_per_bay) if reloc_per_bay else 0
         ideal_per_crane = total_relocs / max(n_cranes, 1)
         excess = max(0, max_per_bay - ideal_per_crane)
         lb_interference = excess * (40 + 3.5)
 
-        lb_mc = lb_single + lb_reloc_per_crane + lb_interference
+        lb_mc = lb_retrieval + (lb_reloc_total / n_cranes) + lb_interference
         lbs.append(lb_mc)
 
     return torch.tensor(lbs, dtype=torch.float)
