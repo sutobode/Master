@@ -9,6 +9,7 @@ from baselines.lin2015 import Lin2015
 from baselines.kim2016 import Kim2016
 from baselines.leveling import Leveling
 from baselines.durasevic2025 import Durasevic2025
+from baselines.simple_baselines import RandomRelocate, NearestStack, LowestHeight
 
 from policy.zero_shot import ZeroShotPolicy
 from mcenv.mcenv import MCEnv
@@ -20,6 +21,9 @@ BASELINES = {
     'Kim2016': Kim2016,
     'Leveling': Leveling,
     'Durasevic2025': Durasevic2025,
+    'Random': RandomRelocate,
+    'NearestStack': NearestStack,
+    'LowestHeight': LowestHeight,
 }
 
 CONFIGS = [(1, 16, 6), (2, 16, 6)]
