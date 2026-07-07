@@ -10,8 +10,8 @@ def test_lb_mc_one_crane_matches_theorem2():
 
     lb_mc = compute_lb_mc(x, 1, 16, 6, n_cranes=1)
     lb_t2 = get_wt_lb(x.reshape(1, -1, 6))
-    assert abs(lb_mc.item() - lb_t2) / lb_t2 < 0.1, \
-        f'LB_MCRP={lb_mc:.1f}, LB_T2={lb_t2:.1f}'
+    assert abs(lb_mc.item() - lb_t2) / lb_t2 < 0.02, \
+        f'LB_MCRP={lb_mc:.1f}, LB_T2={lb_t2:.1f} (tolerance 2%)'
 
 
 def test_lb_mc_decreases_with_more_cranes():

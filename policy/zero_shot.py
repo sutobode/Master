@@ -43,13 +43,14 @@ class ZeroShotPolicy:
             m.eval()
 
     @torch.no_grad()
-    def get_scores(self, x, n_bays, n_rows, n_tiers, target_stack, invalid_mask=None):
+    def get_scores(self, x, n_bays, n_rows, n_tiers, target_stack, invalid_mask=None,
+                   t_acc=40, t_bay=3.5, t_row=1.2, t_pd=30):
         batch = 1
         max_stacks = n_bays * n_rows
 
         node_embeddings, graph_embedding = self.encoder(
             x.reshape(batch, max_stacks, n_tiers), n_bays, n_rows,
-            t_acc=40, t_bay=3.5, t_row=1.2, t_pd=30
+            t_acc=t_acc, t_bay=t_bay, t_row=t_row, t_pd=t_pd
         )
 
         target_emb = node_embeddings[:, target_stack:target_stack+1, :]
@@ -67,6 +68,8 @@ class ZeroShotPolicy:
         return torch.log_softmax(logits, dim=1)
 
     @torch.no_grad()
-    def get_action(self, x, n_bays, n_rows, n_tiers, target_stack, invalid_mask=None):
-        log_p = self.get_scores(x, n_bays, n_rows, n_tiers, target_stack, invalid_mask)
+    def get_action(self, x, n_bays, n_rows, n_tiers, target_stack, invalid_mask=None,
+                   t_acc=40, t_bay=3.5, t_row=1.2, t_pd=30):
+        log_p = self.get_scores(x, n_bays, n_rows, n_tiers, target_stack, invalid_mask,
+                                t_acc=t_acc, t_bay=t_bay, t_row=t_row, t_pd=t_pd)
         return log_p.argmax(dim=1, keepdim=True)

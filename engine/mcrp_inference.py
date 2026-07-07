@@ -1,7 +1,9 @@
 import torch
 
 
-def run_mcrp_episode(policy, env, strategy, n_bays, n_rows, n_tiers, max_steps=2000):
+def run_mcrp_episode(policy, env, strategy, n_bays, n_rows, n_tiers, max_steps=None):
+    if max_steps is None:
+        max_steps = max(2000, n_bays * n_rows * n_tiers * 2)
     total_cost = 0.0
     per_crane_cost = torch.zeros(env.n_cranes)
     trajectory = []
@@ -22,7 +24,8 @@ def run_mcrp_episode(policy, env, strategy, n_bays, n_rows, n_tiers, max_steps=2
         dest_stack = policy.get_action(
             state, n_bays, n_rows, n_tiers,
             target_stack=target_stack_idx,
-            invalid_mask=full_mask.unsqueeze(0)
+            invalid_mask=full_mask.unsqueeze(0),
+            t_acc=env.t_acc, t_bay=env.t_bay, t_row=env.t_row, t_pd=env.t_pd
         )
 
         crane_id = strategy.assign(env, target_stack_idx, dest_stack[0, 0].item())

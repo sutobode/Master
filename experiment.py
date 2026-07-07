@@ -69,9 +69,54 @@ def load_instance_tensor(data_lines, n_bays, n_rows, n_tiers):
     return tensor
 
 
+def verify_backward_compatibility(policy):
+    """Sanity check: ZeroShotPolicy(C=1) must match original model cost within 2%."""
+    from model.model import Model
+    from mcenv.mcenv import MCEnv
+    from engine.mcrp_inference import run_mcrp_episode
+    from strategies import RoundRobin
+    from benchmarks.benchmarks import find_and_process_file
+
+    try:
+        x, _ = find_and_process_file('benchmarks/Lee_instances', 'random', 1, 16, 6, 1, no_print=True)
+    except (FileNotFoundError, ValueError):
+        print('  [SKIP] backward compat: benchmark files not found')
+        return
+
+    model_args = argparse.Namespace(
+        device=torch.device('cpu'), embed_dim=128, n_encode_layers=3, n_heads=8,
+        ff_hidden=512, tanh_c=10, lstm=True, bay_embedding=True,
+        online=False, online_known_num=None
+    )
+    orig_model = Model(model_args)
+    orig_model.load_state_dict(
+        torch.load('baselines/models/proposed/epoch(100).pt', map_location='cpu')
+    )
+    orig_model.eval()
+    orig_model.decoder.set_sampler('greedy')
+
+    with torch.no_grad():
+        wt_orig, _ = orig_model(x, None)
+
+    env = MCEnv('cpu', x, n_cranes=1, crane_start_bays=[1])
+    strategy = RoundRobin(1, x.shape[1], x.shape[2])
+    result = run_mcrp_episode(policy, env, strategy, x.shape[1], x.shape[2], x.shape[3])
+
+    cost_diff_pct = 100 * abs(result['total_cost'] - wt_orig[0].item()) / wt_orig[0].item()
+    print(f'  Backward compat C=1: original={wt_orig[0].item():.1f}, zero-shot={result["total_cost"]:.1f}, diff={cost_diff_pct:.2f}%')
+    assert cost_diff_pct < 2.0, (
+        f'Backward compatibility FAILED: zero-shot cost ({result["total_cost"]:.1f}) '
+        f'differs from original ({wt_orig[0].item():.1f}) by {cost_diff_pct:.2f}%'
+    )
+    print(f'  [PASS] Backward compatibility verified (diff={cost_diff_pct:.2f}%)')
+
+
 def run_experiment(args):
     torch.manual_seed(args.seed)
     policy = ZeroShotPolicy(device=torch.device('cpu'))
+    print('=== Verifying backward compatibility (C=1) ===')
+    verify_backward_compatibility(policy)
+    print()
 
     files = sorted(glob.glob(os.path.join(args.instance_dir, '*.txt')))
     if args.max_instances:
