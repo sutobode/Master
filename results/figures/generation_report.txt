@@ -1,0 +1,9 @@
+Generating figures from: results\mcrp_experiment_20260708_013214.csv
+Total runs: 1120
+
+[OK] fig1_gap_by_strategy.png
+[OK] fig2_gap_by_scale.png
+[OK] fig3_gap_by_bays.png
+[OK] fig4_interference.png
+[OK] fig5_speedup.png
+[OK] fig6_win_rate.png
