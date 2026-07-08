@@ -1,4 +1,7 @@
 results/training*
+results/paper_verification.csv
+results/*_log.txt
+results/*_output.txt
 plots/
 generator/eval_data/
 .DS_Store
@@ -6,3 +9,12 @@ generator/eval_data/
 __pycache__/
 *.py[cod]
 *$py.class
+*.aux
+*.log
+*.spl
+*.synctex.gz
+*.dvi
+*.fdb_latexmk
+*.fls
+*.out
+*.toc
