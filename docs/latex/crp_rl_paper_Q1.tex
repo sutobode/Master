@@ -588,6 +588,39 @@ Figure~\ref{fig:interference} visualizes the interference distribution across st
     \label{fig:interference}
 \end{figure}
 
+\subsection{Comparison with Multi-Crane Heuristic Baselines}
+\label{sec:results_mc_baselines}
+
+To benchmark our zero-shot DRL approach against traditional heuristics extended to multi-crane settings, we compare ZeroShot+S2 against Lin2015~\cite{lin2015} adapted for multi-crane operation via ZoneSplit (denoted M-Lin2015). Table~\ref{tab:mc_baselines} reports results across nine diverse instances.
+
+\begin{table}[h!]
+    \centering
+    \caption{Multi-crane baseline comparison: ZeroShot+S2 vs M-Lin2015.}
+    \label{tab:mc_baselines}
+    \begin{tabularx}{\textwidth}{lccc}
+        \toprule
+        Method & Mean Gap(\%) & Min(\%) & Max(\%) \\
+        \midrule
+        M-Lin2015 (heuristic) & $33.60 \pm 6.59$ & 23.24 & 39.57 \\
+        \textbf{ZeroShot+S2 (ours)} & $\mathbf{8.89 \pm 2.99}$ & \textbf{2.66} & \textbf{12.58} \\
+        \midrule
+        Improvement & --- & 24.71 pp & --- \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+ZeroShot+S2 achieves a mean gap of 8.89\%, outperforming M-Lin2015 (33.60\%) by 24.71 percentage points---a factor of 3.8$\times$ improvement. This confirms that the DRL policy's learned relocation knowledge provides substantial benefits over hand-crafted heuristics even in multi-crane settings.
+
+\subsection{Cost Decomposition}
+\label{sec:results_cost}
+
+We decompose the total cost into the lower bound component ($\LB_{\text{MCRP}}$) and the excess gap cost. Across all strategies, the gap cost constitutes 11.5--12.1\% of total cost. S2 reduces the absolute gap cost by 5.8\% compared to S1 (4349 vs 4617), while the gap cost percentage drops from 12.1\% to 11.5\%. This reduction is attributable entirely to interference elimination: S2 averages 0.6 interference events vs S1's 126.6.
+
+\subsection{Case Study}
+\label{sec:results_case}
+
+We examine a representative 2-bay, 140-container instance to illustrate strategy behavior. Both S1 and S2 achieve identical total cost (12,130) on this specific instance, but their operational profiles differ markedly: S1 incurs 42 interference events (cranes repeatedly blocked from accessing destination bays), while S2 incurs zero. S1's per-crane cost distribution is $[5005, 7125]$ (imbalanced by 29.7\%), while S2 achieves $[4554, 7577]$ (imbalanced by 39.9\%). This reveals that S2 trades per-crane balance for interference-free operation, which becomes increasingly beneficial as yard scale grows (see Section~\ref{sec:results_scale}).
+
 \subsection{Failure Mode and Lower Bound Analysis}
 \label{sec:results_failure}
 

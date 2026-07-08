@@ -1,0 +1,136 @@
+
+============================================================
+ANALYSIS 1: Cost Decomposition
+============================================================
+
+Per-strategy averages:
+              cost     lb_mc    gap  interference  n_steps  time_s
+strategy                                                          
+S1        38076.70  33459.89  11.09        126.56   252.09    3.21
+S2        37809.32  33459.89  10.58          0.61   252.09    3.18
+S3        38076.70  33459.89  11.09        126.56   252.09    3.19
+S4        37823.57  33459.89  10.61          0.00   252.09    3.19
+
+Cost breakdown:
+  S1: avg_cost=38077, lb_mc=33460, gap_cost=4617 (12.1%)
+      avg_interference=126.6 events, avg_steps=252
+  S2: avg_cost=37809, lb_mc=33460, gap_cost=4349 (11.5%)
+      avg_interference=0.6 events, avg_steps=252
+  S3: avg_cost=38077, lb_mc=33460, gap_cost=4617 (12.1%)
+      avg_interference=126.6 events, avg_steps=252
+  S4: avg_cost=37824, lb_mc=33460, gap_cost=4364 (11.5%)
+      avg_interference=0.0 events, avg_steps=252
+
+Saved: results/supplementary/cost_decomposition.csv
+
+============================================================
+ANALYSIS 2: Multi-crane Heuristic Baselines
+============================================================
+Testing 9 instances
+
+--- mc_R021606_001_c2.txt (B=2R=16T=6, LB=11315) ---
+  ZS+S2: cost=12130 gap=7.2% speedup=1.09x
+  M-Lin2015: cost=13980 gap=23.5% speedup=0.94x
+
+--- mc_R021606_002_c2.txt (B=2R=16T=6, LB=10755) ---
+  ZS+S2: cost=11530 gap=7.2% speedup=1.09x
+  M-Lin2015: cost=13254 gap=23.2% speedup=0.95x
+
+--- mc_R021606_003_c2.txt (B=2R=16T=6, LB=11438) ---
+  ZS+S2: cost=11743 gap=2.7% speedup=1.12x
+  M-Lin2015: cost=15763 gap=37.8% speedup=0.84x
+
+--- mc_R041606_001_c2.txt (B=4R=16T=6, LB=26817) ---
+  ZS+S2: cost=30191 gap=12.6% speedup=0.99x
+  M-Lin2015: cost=36750 gap=37.0% speedup=0.81x
+
+--- mc_R041606_002_c2.txt (B=4R=16T=6, LB=25689) ---
+  ZS+S2: cost=28154 gap=9.6% speedup=1.01x
+  M-Lin2015: cost=35853 gap=39.6% speedup=0.80x
+
+--- mc_R041606_003_c2.txt (B=4R=16T=6, LB=25978) ---
+  ZS+S2: cost=28091 gap=8.1% speedup=1.04x
+  M-Lin2015: cost=33396 gap=28.6% speedup=0.87x
+
+--- mc_R061606_001_c2.txt (B=6R=16T=6, LB=42978) ---
+  ZS+S2: cost=47633 gap=10.8% speedup=1.01x
+  M-Lin2015: cost=58948 gap=37.2% speedup=0.81x
+
+--- mc_R061606_002_c2.txt (B=6R=16T=6, LB=42349) ---
+  ZS+S2: cost=47158 gap=11.4% speedup=1.01x
+  M-Lin2015: cost=57983 gap=36.9% speedup=0.82x
+
+--- mc_R061606_003_c2.txt (B=6R=16T=6, LB=42179) ---
+  ZS+S2: cost=46567 gap=10.4% speedup=1.03x
+  M-Lin2015: cost=58430 gap=38.5% speedup=0.82x
+
+=== Multi-crane Baseline Summary ===
+                 gap                         speedup      time
+                mean       std    min    max    mean      mean
+method                                                        
+M-Lin2015  33.597778  6.585336  23.24  39.57   0.851  1.973111
+ZS+S2       8.885556  2.985474   2.66  12.58   1.042  1.464333
+
+Saved: results/supplementary/multi_crane_baselines.csv
+
+============================================================
+ANALYSIS 3: Case Study -- S1 vs S2 Step-by-Step
+============================================================
+
+Instance: mc_R021606_001_c2.txt
+  Layout: 2x16x6
+  Containers: 140
+  Single-crane LB: 13181
+  M-CRP LB (C=2): 11315
+
+--- Comparison ---
+Metric                       S1 (RoundRobin)     S2 (ZoneSplit)
+------------------------------------------------------------
+Total cost                             12130              12130
+Gap vs LB(%)                             7.2                7.2
+Speedup vs C=1                         1.087              1.087
+Interference events                       42                  0
+Total steps                               82                 82
+Per-crane cost            [5005.50048828125, 7125.0] [4553.701171875, 7576.7998046875]
+
+S2 outperforms S1 by 0.0% on this instance.
+S1 has 42.0 interference events (cranes blocked),
+while S2 has 0.0 -- ZoneSplit eliminates interference by design.
+
+--- S1 Trajectory (first 10 steps) ---
+  Step 0: Crane 0 -> Bay 0 (cost=92)
+  Step 1: Crane 1 -> Bay 1 (cost=83)
+  Step 2: Crane 0 -> Bay 1 (cost=32)
+  Step 3: Crane 1 -> Bay 1 (cost=32)
+  Step 4: Crane 0 -> Bay 1 (cost=82)
+  Step 5: Crane 1 -> Bay 1 (cost=162)
+  Step 6: Crane 0 -> Bay 0 (cost=82)
+  Step 7: Crane 1 -> Bay 0 (cost=38)
+  Step 8: Crane 0 -> Bay 0 (cost=82)
+  Step 9: Crane 1 -> Bay 0 (cost=90)
+
+--- S2 Trajectory (first 10 steps) ---
+  Step 0: Crane 0 -> Bay 0 (cost=92)
+  Step 1: Crane 1 -> Bay 1 (cost=83)
+  Step 2: Crane 1 -> Bay 1 (cost=32)
+  Step 3: Crane 1 -> Bay 1 (cost=32)
+  Step 4: Crane 1 -> Bay 1 (cost=82)
+  Step 5: Crane 1 -> Bay 1 (cost=162)
+  Step 6: Crane 0 -> Bay 0 (cost=82)
+  Step 7: Crane 0 -> Bay 0 (cost=38)
+  Step 8: Crane 0 -> Bay 0 (cost=82)
+  Step 9: Crane 0 -> Bay 0 (cost=90)
+
+=== CASE STUDY SUMMARY FOR PAPER ===
+On a 2-bay instance with 140 containers:
+- S1 (RoundRobin): cost=12130, gap=7.2%, 42.0 interference events
+- S2 (ZoneSplit):  cost=12130, gap=7.2%, 0.0 interference events
+- S2 reduces cost by 0.0% and eliminates all interference.
+- The speedup vs single-crane increases from 1.09x (S1) to 1.09x (S2).
+
+Saved: results/supplementary/case_study.json
+
+============================================================
+ALL SUPPLEMENTARY ANALYSES COMPLETE
+Results saved to results/supplementary/
+============================================================

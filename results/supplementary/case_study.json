@@ -1,0 +1,14 @@
+{
+  "instance": "mc_R021606_001_c2.txt",
+  "n_bays": 2,
+  "n_containers": 140,
+  "lb_single": 13181.4,
+  "lb_mc": 11315.4,
+  "s1_cost": 12130.5,
+  "s1_gap": 7.2,
+  "s1_intf": 42.0,
+  "s2_cost": 12130.5,
+  "s2_gap": 7.2,
+  "s2_intf": 0.0,
+  "improvement_pct": 0.0
+}
