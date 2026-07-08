@@ -43,7 +43,7 @@
 \address[inst]{Department, University, City, Country}
 
 \begin{abstract}
-Real-world automated container terminals operate multiple yard cranes per block to meet throughput demands, yet all existing research on the Container Retrieval Problem (CRP) exclusively assumes single-crane operation. This paper presents the \emph{first} formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP). We investigate whether a state-of-the-art Deep Reinforcement Learning (DRL) policy---trained solely on single-crane instances---can be transferred zero-shot to multi-crane environments through heuristic crane assignment strategies. We propose four strategies spanning the systematic design space from $O(1)$ to $O(C^2)$: RoundRobin (S1), ZoneSplit (S2), LoadBalance (S3), and GreedyOptimal (S4). Extensive experiments on 140 M-CRP benchmark instances (1,120 runs across 2--3 cranes) demonstrate that zero-shot transfer is viable. ZoneSplit achieves average gaps of 10.46\% (C=2) and 10.71\% (C=3) against the proposed M-CRP lower bound (Theorem~3), while reducing crane interference events by over 99.5\% compared to non-spatial strategies. ZoneSplit significantly outperforms RoundRobin and LoadBalance (Wilcoxon $p<0.001$), matches the more computationally expensive GreedyOptimal ($p>0.1$), and incurs only $O(B)$ complexity. On single-crane benchmarks, the zero-shot extraction pipeline achieves a 5.63\% gap, outperforming the Lin2015 heuristic (10.28\%) and all other baselines by margins of 4--63 percentage points. Our results establish that single-crane DRL policies encode transferable spatial knowledge, enabling practical multi-crane deployment without retraining. We publicly release all code, benchmark instances, and experimental results.
+Real-world automated container terminals operate multiple yard cranes per block to meet throughput demands, yet all existing research on the Container Retrieval Problem (CRP) exclusively assumes single-crane operation. This paper presents the \emph{first} formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP). We investigate whether a state-of-the-art Deep Reinforcement Learning (DRL) policy---trained solely on single-crane instances---can be transferred zero-shot to multi-crane environments through heuristic crane assignment strategies. We propose four strategies spanning the systematic design space from $O(1)$ to $O(C^2)$: RoundRobin (S1), ZoneSplit (S2), LoadBalance (S3), and GreedyOptimal (S4). Extensive experiments on 140 M-CRP benchmark instances (1,120 runs across 2--3 cranes) demonstrate that zero-shot transfer is viable. ZoneSplit achieves average gaps of 10.46\% (C=2) and 10.71\% (C=3) against the proposed M-CRP lower bound (Theorem~3), while reducing crane interference events by over 99.5\% compared to non-spatial strategies. ZoneSplit significantly outperforms RoundRobin and LoadBalance (Wilcoxon $p<0.001$), matches the more computationally expensive GreedyOptimal ($p>0.1$), and incurs only $O(B)$ complexity. On the full 50-instance Lee benchmark, the zero-shot extraction pipeline achieves a mean gap of 6.56\%, outperforming the best heuristic Lin2015 (22.42\%) by 15.86 percentage points and all other baselines by margins of 19--113 percentage points. Our results establish that single-crane DRL policies encode transferable spatial knowledge, enabling practical multi-crane deployment without retraining. We publicly release all code, benchmark instances, and experimental results.
 \end{abstract}
 
 \begin{keyword}
@@ -470,26 +470,25 @@ We construct 140 M-CRP benchmark instances (Table~\ref{tab:dataset}) by extendin
 \subsection{Single-Crane Verification}
 \label{sec:results_single}
 
-Table~\ref{tab:single} confirms that the zero-shot extraction pipeline faithfully reproduces the pretrained model's performance in single-crane mode. On the full 50-instance Lee benchmark, ZeroShot achieves a mean gap of 6.56\%, consistent with the reported Shin et al.~\cite{shin2026} baseline of 7.8\%. On a representative 4-instance subset where all baselines are evaluated, ZeroShot achieves 5.63\%, outperforming the strongest heuristic Lin2015 (10.28\%) by 4.65 percentage points.
+Table~\ref{tab:single} presents a comprehensive comparison on the full 50-instance Lee benchmark. ZeroShot achieves a mean gap of 6.56\%, consistent with the reported Shin et al.~\cite{shin2026} baseline of 7.8\%. Critically, the full benchmark reveals that heuristic performance degrades substantially on larger instances: Lin2015 averages 22.42\% (vs 10.28\% on small instances), Kim2016 averages 41.08\%, and Durasevic2025 averages 47.33\%. ZeroShot outperforms the best heuristic (Lin2015) by 15.86 percentage points---a factor of 3.4$\times$ improvement---and outperforms all other baselines by 19--113 percentage points.
 
 \begin{table}[h!]
     \centering
-    \caption{Single-crane comparison on Lee benchmarks. Baselines evaluated on 4 representative instances; ZeroShot additionally evaluated on full 50-instance benchmark.}
+    \caption{Single-crane comparison on the full 50-instance Lee benchmark. All methods evaluated on identical instances.}
     \label{tab:single}
     \begin{tabularx}{\textwidth}{lcccc}
         \toprule
-        Method & Instances & Mean Gap(\%) & Min(\%) & Max(\%) \\
+        Method & Mean Gap(\%) & Std(\%) & Min(\%) & Max(\%) \\
         \midrule
-        Random & 4 & 68.72 & 47.16 & 104.26 \\
-        NearestStack & 4 & 45.82 & 27.77 & 58.12 \\
-        LowestHeight & 4 & 40.12 & 26.44 & 57.82 \\
-        Durasevic2025~\cite{durasevic2025} & 4 & 31.55 & 15.64 & 51.93 \\
-        Kim2016~\cite{kim2016} & 4 & 25.02 & 13.27 & 37.52 \\
-        Leveling & 4 & 22.54 & 18.29 & 29.52 \\
-        Lin2015~\cite{lin2015} & 4 & 10.28 & 5.55 & 14.14 \\
+        Random & 119.71 & 36.37 & 47.89 & 182.24 \\
+        NearestStack & 79.62 & 25.40 & 27.77 & 130.04 \\
+        LowestHeight & 77.60 & 26.16 & 26.44 & 121.65 \\
+        Durasevic2025~\cite{durasevic2025} & 47.33 & 15.32 & 14.68 & 80.06 \\
+        Kim2016~\cite{kim2016} & 41.08 & 13.57 & 9.84 & 61.54 \\
+        Leveling & 25.55 & 8.43 & 14.88 & 44.12 \\
+        Lin2015~\cite{lin2015} & 22.42 & 7.81 & 5.55 & 37.75 \\
         \midrule
-        \textbf{ZeroShot (4 instances)} & 4 & \textbf{5.63} & \textbf{4.27} & \textbf{7.04} \\
-        \textbf{ZeroShot (full benchmark)} & \textbf{50} & \textbf{6.56} & \textbf{3.26} & \textbf{12.42} \\
+        \textbf{ZeroShot (ours)} & \textbf{6.56} & \textbf{2.35} & \textbf{3.26} & \textbf{12.42} \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -611,25 +610,29 @@ Figure~\ref{fig:interference} visualizes the interference distribution across st
 \subsection{Comparison with Multi-Crane Heuristic Baselines}
 \label{sec:results_mc_baselines}
 
-To benchmark our zero-shot DRL approach against traditional heuristics extended to multi-crane settings, we compare ZeroShot+S2 against Lin2015~\cite{lin2015} adapted for multi-crane operation via ZoneSplit (denoted M-Lin2015). Table~\ref{tab:mc_baselines} reports results across nine diverse instances.
+Table~\ref{tab:mc_baselines} compares ZeroShot+S2 against Lin2015~\cite{lin2015} adapted for multi-crane operation via ZoneSplit (denoted M-Lin2015) across the full 140-instance M-CRP benchmark.
 
 \begin{table}[h!]
     \centering
-    \caption{Multi-crane baseline comparison: ZeroShot+S2 vs M-Lin2015.}
+    \caption{Multi-crane baseline comparison on 140 instances.}
     \label{tab:mc_baselines}
-    \begin{tabularx}{\textwidth}{lccc}
+    \begin{tabularx}{\textwidth}{lcccc}
         \toprule
-        Method & Mean Gap(\%) & Min(\%) & Max(\%) \\
+        Method & Cranes & Mean Gap(\%) & Std(\%) & Intf \\
         \midrule
-        M-Lin2015 (heuristic) & $33.60 \pm 6.59$ & 23.24 & 39.57 \\
-        \textbf{ZeroShot+S2 (ours)} & $\mathbf{8.89 \pm 2.99}$ & \textbf{2.66} & \textbf{12.58} \\
+        \multirow{2}{*}{M-Lin2015 (heuristic)} & 2 & 31.73 & 14.67 & 0.0 \\
+        & 3 & 33.93 & 16.99 & 0.0 \\
         \midrule
-        Improvement & --- & 24.71 pp & --- \\
+        \multirow{2}{*}{\textbf{ZeroShot+S2 (ours)}} & 2 & \textbf{10.46} & \textbf{5.30} & 0.5 \\
+        & 3 & \textbf{10.74} & \textbf{6.46} & 0.7 \\
+        \midrule
+        \multirow{2}{*}{Improvement (pp)} & 2 & 21.27 & --- & --- \\
+        & 3 & 23.19 & --- & --- \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-ZeroShot+S2 achieves a mean gap of 8.89\%, outperforming M-Lin2015 (33.60\%) by 24.71 percentage points---a factor of 3.8$\times$ improvement. This confirms that the DRL policy's learned relocation knowledge provides substantial benefits over hand-crafted heuristics even in multi-crane settings.
+ZeroShot+S2 outperforms M-Lin2015 by 21.27--23.19 percentage points---approximately 3$\times$ better---confirming that learned DRL policies provide substantial advantages over hand-crafted heuristics in multi-crane settings.
 
 \subsection{Cost Decomposition}
 \label{sec:results_cost}

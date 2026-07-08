@@ -1,0 +1,55 @@
+
+=== PART 1: Running 7 baselines on 50 Lee instances ===
+  [10/50] R011608_0090_005 | 45s remaining
+  [20/50] R021608_0190_005 | 54s remaining
+  [30/50] R041608_0380_005 | 121s remaining
+  [40/50] R061608_0570_005 | 139s remaining
+  [50/50] R101606_0720_005 | 0s remaining
+
+Done: 50 instances in 1181s
+
+=== PART 2: Running multi-crane baselines on 140 M-CRP instances ===
+  [10/140] mc_R011606_005_c3.txt | 180s remaining
+  [20/140] mc_R011608_005_c3.txt | 211s remaining
+  [30/140] mc_R021606_005_c3.txt | 240s remaining
+  [40/140] mc_R021608_005_c3.txt | 293s remaining
+  [50/140] mc_R041606_005_c3.txt | 359s remaining
+  [60/140] mc_R041608_005_c3.txt | 406s remaining
+  [70/140] mc_R061606_005_c3.txt | 459s remaining
+  [80/140] mc_R061608_005_c3.txt | 506s remaining
+  [90/140] mc_R081606_005_c3.txt | 481s remaining
+  [100/140] mc_R101606_005_c3.txt | 452s remaining
+  [110/140] mc_U021606_001_c3.txt | 314s remaining
+  [120/140] mc_U041606_002_c3.txt | 203s remaining
+  [130/140] mc_U061608_001_c3.txt | 107s remaining
+  [140/140] mc_U101606_002_c3.txt | 0s remaining
+
+Done: 280 runs in 1671s
+
+=== PART 3: Comprehensive Summary ===
+
+--- SINGLE-CRANE (50 Lee instances) ---
+  Durasevic2025       : mean=  47.33% std=15.32 min=  14.68% max=  80.06% (n=50)
+  Kim2016             : mean=  41.08% std=13.57 min=   9.84% max=  61.54% (n=50)
+  Leveling            : mean=  25.55% std= 8.43 min=  14.88% max=  44.12% (n=50)
+  Lin2015             : mean=  22.42% std= 7.81 min=   5.55% max=  37.75% (n=50)
+  LowestHeight        : mean=  77.60% std=26.16 min=  26.44% max= 121.65% (n=50)
+  NearestStack        : mean=  79.62% std=25.40 min=  27.77% max= 130.04% (n=50)
+  Random              : mean= 119.71% std=36.37 min=  47.89% max= 182.24% (n=50)
+  ZeroShot            : mean=   6.56% std= 2.35 min=   3.26% max=  12.42% (n=50)
+
+--- MULTI-CRANE (140 instances × 2-3 cranes) ---
+
+  C=2:
+    M-Lin2015   : gap= 31.73±14.67% intf=0.0 (n=70)
+    ZS+S2       : gap= 10.46±5.30% intf=0.5 (n=70)
+
+  C=3:
+    M-Lin2015   : gap= 33.93±16.99% intf=0.0 (n=70)
+    ZS+S2       : gap= 10.74±6.46% intf=0.7 (n=70)
+
+Saved: results/final_comprehensive/summary.json
+
+============================================================
+TOTAL TIME: 2851s
+All results saved to results/final_comprehensive/

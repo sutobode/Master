@@ -1,0 +1,86 @@
+{
+  "single_crane": {
+    "Durasevic2025": {
+      "mean_gap": 47.33,
+      "std_gap": 15.32,
+      "min_gap": 14.68,
+      "max_gap": 80.06,
+      "n": 50
+    },
+    "Kim2016": {
+      "mean_gap": 41.08,
+      "std_gap": 13.57,
+      "min_gap": 9.84,
+      "max_gap": 61.54,
+      "n": 50
+    },
+    "Leveling": {
+      "mean_gap": 25.55,
+      "std_gap": 8.43,
+      "min_gap": 14.88,
+      "max_gap": 44.12,
+      "n": 50
+    },
+    "Lin2015": {
+      "mean_gap": 22.42,
+      "std_gap": 7.81,
+      "min_gap": 5.55,
+      "max_gap": 37.75,
+      "n": 50
+    },
+    "LowestHeight": {
+      "mean_gap": 77.6,
+      "std_gap": 26.16,
+      "min_gap": 26.44,
+      "max_gap": 121.65,
+      "n": 50
+    },
+    "NearestStack": {
+      "mean_gap": 79.62,
+      "std_gap": 25.4,
+      "min_gap": 27.77,
+      "max_gap": 130.04,
+      "n": 50
+    },
+    "Random": {
+      "mean_gap": 119.71,
+      "std_gap": 36.37,
+      "min_gap": 47.89,
+      "max_gap": 182.24,
+      "n": 50
+    },
+    "ZeroShot": {
+      "mean_gap": 6.56,
+      "std_gap": 2.35,
+      "min_gap": 3.26,
+      "max_gap": 12.42,
+      "n": 50
+    }
+  },
+  "multi_crane": {
+    "C=2": {
+      "ZS+S2": {
+        "gap_mean": 10.46,
+        "gap_std": 5.3,
+        "intf_mean": 0.5
+      },
+      "M-Lin2015": {
+        "gap_mean": 31.73,
+        "gap_std": 14.67,
+        "intf_mean": 0.0
+      }
+    },
+    "C=3": {
+      "ZS+S2": {
+        "gap_mean": 10.74,
+        "gap_std": 6.46,
+        "intf_mean": 0.7
+      },
+      "M-Lin2015": {
+        "gap_mean": 33.93,
+        "gap_std": 16.99,
+        "intf_mean": 0.0
+      }
+    }
+  }
+}
