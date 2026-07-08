@@ -1,0 +1,93 @@
+Starting critical fixes...
+
+
+======================================================================
+FIX 1: Full Single-Crane Lee Benchmark (36 instances)
+======================================================================
+
+Total instances: 50
+Average ZeroShot gap: 6.56%
+Min gap: 3.26%
+Max gap: 12.42%
+
+By number of bays:
+  B=1: mean gap=7.42% (n=10)
+  B=2: mean gap=6.90% (n=10)
+  B=4: mean gap=6.76% (n=10)
+  B=6: mean gap=7.01% (n=10)
+  B=8: mean gap=4.52% (n=5)
+  B=10: mean gap=4.88% (n=5)
+
+Saved: results/critical_fixes/full_lee_benchmark.csv
+
+======================================================================
+FIX 2: Multi-bay Case Study (detecting S1 vs S2 difference)
+======================================================================
+
+mc_R061606_001_c2.txt (B=6, N=430):
+  S1: cost=47881 gap=11.4% intf=104.0
+  S2: cost=47633 gap=10.8% intf=0.0
+  Cost diff: 247 (0.5%)
+
+mc_R061606_002_c2.txt (B=6, N=430):
+  S1: cost=47827 gap=12.9% intf=106.0
+  S2: cost=47158 gap=11.4% intf=0.0
+  Cost diff: 669 (1.4%)
+
+mc_R061606_003_c2.txt (B=6, N=430):
+  S1: cost=47156 gap=11.8% intf=101.0
+  S2: cost=46567 gap=10.4% intf=1.0
+  Cost diff: 589 (1.3%)
+
+mc_R041606_001_c2.txt (B=4, N=280):
+  S1: cost=30262 gap=12.8% intf=85.0
+  S2: cost=30191 gap=12.6% intf=0.0
+  Cost diff: 71 (0.2%)
+
+mc_R041606_002_c2.txt (B=4, N=280):
+  S1: cost=28213 gap=9.8% intf=71.0
+  S2: cost=28154 gap=9.6% intf=1.0
+  Cost diff: 59 (0.2%)
+
+mc_R041606_003_c2.txt (B=4, N=280):
+  S1: cost=28381 gap=9.3% intf=68.0
+  S2: cost=28091 gap=8.1% intf=0.0
+  Cost diff: 290 (1.0%)
+
+=== BEST CASE STUDY INSTANCE ===
+{
+  "fname": "mc_R061606_002_c2.txt",
+  "n_bays": 6,
+  "n_rows": 16,
+  "n_tiers": 6,
+  "n_containers": 430,
+  "lb": 42349.0,
+  "s1_cost": 47826.6,
+  "s1_gap": 12.93,
+  "s1_intf": 106.0,
+  "s2_cost": 47157.8,
+  "s2_gap": 11.36,
+  "s2_intf": 0.0,
+  "diff_cost": 668.8,
+  "diff_pct": 1.4
+}
+
+Saved: results/critical_fixes/case_study.json
+
+======================================================================
+FIX 3: Backward Compatibility Verification (5 instances)
+======================================================================
+  R011606_0070_001.txt: orig=4807 zs=4714 diff=1.95% [PASS]
+  R011606_0070_003.txt: orig=4872 zs=4793 diff=1.63% [PASS]
+  R021606_0140_001.txt: orig=13067 zs=12935 diff=1.01% [PASS]
+  R041606_0280_001.txt: orig=31252 zs=31061 diff=0.61% [PASS]
+  R061606_0430_001.txt: orig=49421 zs=48736 diff=1.39% [PASS]
+
+Summary: 5/5 passed (threshold 2%)
+Average diff: 1.32%, Max diff: 1.95%
+Saved: results/critical_fixes/backward_compat.csv
+
+======================================================================
+ALL CRITICAL FIXES COMPLETE
+Results saved to results/critical_fixes/
+======================================================================

@@ -1,0 +1,16 @@
+{
+  "fname": "mc_R061606_002_c2.txt",
+  "n_bays": 6,
+  "n_rows": 16,
+  "n_tiers": 6,
+  "n_containers": 430,
+  "lb": 42349.0,
+  "s1_cost": 47826.6,
+  "s1_gap": 12.93,
+  "s1_intf": 106.0,
+  "s2_cost": 47157.8,
+  "s2_gap": 11.36,
+  "s2_intf": 0.0,
+  "diff_cost": 668.8,
+  "diff_pct": 1.4
+}
