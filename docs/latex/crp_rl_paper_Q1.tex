@@ -67,13 +67,7 @@ Despite this operational reality, the academic literature has studied CRP \emph{
 \subsection{State of the Art in CRP}
 \label{sec:state_of_art}
 
-The CRP literature has evolved through three distinct methodological generations.
-
-\paragraph{First generation: Heuristic methods.} The earliest approaches rely on domain expertise encoded as hand-crafted rules. Lin et al.~\cite{lin2015} proposed the Stack Selection Index (SSI), which computes a numerical score for each potential relocation stack based on container priority, stack height, bay distance, and row distance. The SSI formula weights these factors through parameters tuned on a validation set. Kim et al.~\cite{kim2016} introduced a classification-based approach that categorizes stacks as \emph{ideal} (containing no blocking containers), \emph{critical} (containing the next target container below blocking containers), or \emph{blocked} (containing neither), and applies different relocation rules to each category. The Leveling heuristic~\cite{shin2026} fills the shortest stacks first to maintain balanced stack heights across the yard. These methods are computationally efficient (sub-second per instance) but their fixed decision rules cannot adapt to challenging or irregular yard configurations.
-
-\paragraph{Second generation: Metaheuristic and search methods.} To overcome the limitations of fixed heuristics, researchers have applied general-purpose optimization frameworks. Forster and Bortfeldt~\cite{forster2012} developed a Tabu Search algorithm that explores the relocation sequence space through neighborhood moves including stack swaps and priority inversions. Cifuentes and Riff~\cite{cifuentes2020} proposed a Greedy Randomized Adaptive Search Procedure (GRASP) with an adaptive randomized construction phase followed by local search. Most recently, Durasevic et al.~\cite{durasevic2025} employed Genetic Programming to evolve numerical priority functions, discovering surprisingly effective rules such as non-linear combinations of stack features. These methods improve solution quality over heuristics (by 5--15\%) at the cost of increased computation time (seconds to minutes per instance).
-
-\paragraph{Third generation: Deep Reinforcement Learning.} The most recent advances leverage DRL to learn policies directly from experience. Shin et al.~\cite{shin2026} proposed a Transformer-based policy network~\cite{vaswani2017} trained via the REINFORCE algorithm~\cite{williams1992} with POMO~\cite{kwon2020} parallel rollouts and a proposed baseline that normalizes both mean and variance. Their model achieves approximately 7.8\% gap against the theoretical lower bound on the standard Lee~\cite{lee2010} benchmark---the first DRL method to outperform all existing heuristics by a statistically significant margin. Critically, the model is publicly available, making it an ideal baseline for transfer studies.
+The CRP literature has evolved through three generations: heuristic methods using hand-crafted rules~\cite{lin2015,kim2016}, metaheuristic and search methods~\cite{forster2012,cifuentes2020,durasevic2025}, and most recently Deep Reinforcement Learning (DRL)~\cite{shin2026}. Shin et al.~\cite{shin2026} proposed a Transformer-based policy network achieving approximately 7.8\% gap against the theoretical lower bound on the Lee benchmark~\cite{lee2010}---the first DRL method to outperform all existing heuristics. Critically, their model is publicly available, making it an ideal baseline for transfer studies. A detailed literature review is provided in Section~\ref{sec:related}.
 
 \subsection{Research Gap and Contributions}
 \label{sec:gap}
@@ -418,6 +412,8 @@ The \texttt{MCEnv} class extends the single-crane environment to support $C$ cra
     \item \textbf{Cost delegation:} The base environment's \texttt{curr\_bay} and \texttt{curr\_row} are set to the executing crane's position before cost calculation, ensuring correct travel costs.
 \end{enumerate}
 
+\textbf{Computational complexity:} Total per-step inference comprises the DRL encoder/scorer ($\approx$5ms on CPU) plus the strategy assignment ($O(1)$ to $O(C^2)$, $<$0.01ms). The total ($\approx$5ms) is suitable for real-time control.
+
 \section{Experimental Design}
 \label{sec:experiments}
 
@@ -479,7 +475,7 @@ Figure~\ref{fig:single_vis} visualizes the dramatic performance gap between Zero
     \label{fig:single_vis}
 \end{figure}
 
-Table~\ref{tab:single} presents the comprehensive comparison. ZeroShot achieves a mean gap of 6.56\%, consistent with the reported Shin et al.~\cite{shin2026} baseline of 7.8\%. Critically, the full benchmark reveals that heuristic performance degrades substantially on larger instances: Lin2015 averages 22.42\% (vs 10.28\% on small instances), Kim2016 averages 41.08\%, and Durasevic2025 averages 47.33\%. ZeroShot outperforms the best heuristic (Lin2015) by 15.86 percentage points---a factor of 3.4$\times$ improvement---and outperforms all other baselines by 19--113 percentage points.
+Table~\ref{tab:single} presents the comprehensive comparison. ZeroShot achieves a mean gap of 6.56\%, which compares favorably with the 7.8\% reported by Shin et al.~\cite{shin2026} on the same benchmark (the small difference is attributable to the greedy decoding used by ZeroShot vs. the original sampling-based evaluation in~\cite{shin2026}). Critically, the full benchmark reveals that heuristic performance degrades substantially on larger instances: Lin2015 averages 22.42\% (vs 10.28\% on small instances), Kim2016 averages 41.08\%, and Durasevic2025 averages 47.33\%. ZeroShot outperforms the best heuristic (Lin2015) by 15.86 percentage points---a factor of 3.4$\times$ improvement---and outperforms all other baselines by 19--113 percentage points.
 
 \begin{table}[h!]
     \centering
@@ -641,12 +637,12 @@ Table~\ref{tab:mc_baselines} compares ZeroShot+S2 against Lin2015~\cite{lin2015}
     \end{tabularx}
 \end{table}
 
-ZeroShot+S2 outperforms M-Lin2015 by 21.27--23.19 percentage points---approximately 3$\times$ better---confirming that learned DRL policies provide substantial advantages over hand-crafted heuristics in multi-crane settings. Figure~\ref{fig:mc_baselines_vis} visualizes this comparison.
+ZeroShot+S2 achieves approximately one-third of M-Lin2015's gap (10.46\% vs 31.73\% at C=2; 10.74\% vs 33.93\% at C=3), confirming that learned DRL policies provide substantial advantages over hand-crafted heuristics in multi-crane settings. Figure~\ref{fig:mc_baselines_vis} visualizes this comparison.
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.75\textwidth]{../../results/figures/fig8_multi_crane_baselines.png}
-    \caption{ZeroShot+S2 vs M-Lin2015 on 140 M-CRP instances. ZS+S2 achieves 10.46\% (C=2) and 10.74\% (C=3), outperforming M-Lin2015 (31.73\% and 33.93\%) by approximately 3$\times$.}
+    \caption{ZeroShot+S2 vs M-Lin2015 on 140 M-CRP instances. ZS+S2 achieves approximately one-third of M-Lin2015's gap (10.46\% vs 31.73\% at C=2; 10.74\% vs 33.93\% at C=3).}
     \label{fig:mc_baselines_vis}
 \end{figure}
 

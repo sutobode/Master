@@ -24,7 +24,7 @@ plt.rcParams.update({
     'axes.titlesize': 14,
     'axes.labelsize': 12,
     'legend.fontsize': 10,
-    'figure.dpi': 150,
+    'figure.dpi': 300,
 })
 
 
