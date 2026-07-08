@@ -1,0 +1,187 @@
+\documentclass[11pt,a4paper]{elsarticle}
+\usepackage[vietnamese]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{bm}
+\usepackage{multirow}
+\usepackage{hyperref}
+
+\usetikzlibrary{arrows,positioning,shapes}
+\journal{Báo cáo nghiên cứu — Hội đồng Khoa học}
+
+\newtheorem{definition}{Định nghĩa}[section]
+\newtheorem{theorem}{Định lý}[section]
+\newtheorem{corollary}{Hệ quả}[section]
+\newtheorem{assumption}{Giả định}[section]
+
+\newcommand{\LB}{\text{LB}}
+
+\begin{document}
+
+\begin{frontmatter}
+\title{Chuyển giao Zero-shot của Policy Học Tăng cường Sâu từ Single-crane sang Multi-crane cho Bài toán Thu hồi Container}
+
+\author[inst]{Nghiên cứu sinh}
+\ead{email@domain.com}
+\address[inst]{Trường Đại học, Việt Nam}
+
+\begin{abstract}
+Bài báo này trình bày định nghĩa hình thức đầu tiên và phân tích thực nghiệm về bài toán Thu hồi Container đa cần cẩu (M-CRP). Chúng tôi nghiên cứu khả năng chuyển giao zero-shot của policy Học Tăng cường Sâu (DRL) từ môi trường đơn crane sang đa crane thông qua bốn chiến lược gán crane: RoundRobin (S1), ZoneSplit (S2), LoadBalance (S3) và GreedyOptimal (S4). Kết quả thực nghiệm trên 140 bộ dữ liệu M-CRP (1,120 lượt chạy) cho thấy ZoneSplit đạt gap trung bình 10.46\% (C=2) và 10.71\% (C=3) so với chặn dưới M-CRP đề xuất (Định lý 3), đồng thời giảm 99.5\% sự kiện nhiễu so với các chiến lược phi không gian. ZoneSplit vượt trội hơn RoundRobin và LoadBalance có ý nghĩa thống kê (Wilcoxon $p<0.001$), tương đương GreedyOptimal ($p>0.1$), và chỉ yêu cầu độ phức tạp $O(B)$.
+\end{abstract}
+
+\begin{keyword}
+Bài toán Thu hồi Container \sep Đa cần cẩu \sep Học Tăng cường Sâu \sep Chuyển giao Zero-shot \sep Tối ưu hóa cảng container
+\end{keyword}
+\end{frontmatter}
+
+\section{Giới thiệu}
+
+\subsection{Động lực thực tiễn}
+Bài toán Thu hồi Container (CRP) là một thách thức tối ưu hóa NP-khó trong vận hành cảng container tự động. Một bãi container điển hình có cấu trúc $B$ bays $\times$ $R$ rows $\times$ $T$ tiers, chứa $N$ container với thứ tự ưu tiên thu hồi xác định. Mục tiêu là tối thiểu hóa tổng thời gian làm việc của crane — bao gồm thời gian di chuyển, xử lý và phạt — khi thu hồi container theo đúng thứ tự và di chuyển các container chặn đường đến stack khác.
+
+Tuy nhiên, tại các cảng lớn như Rotterdam, Singapore và Busan, mỗi block bãi được vận hành bởi 2-3 cần cẩu đồng thời~\cite{stahlbock2008} để đáp ứng năng suất yêu cầu. Vận hành đa crane đặt ra ba thách thức: (1) các crane không thể hoạt động trong cùng bay (va chạm vật lý), (2) thứ tự crane dọc theo trục bay phải được bảo toàn, và (3) quyết định của crane này ảnh hưởng đến khả năng hoạt động của crane khác.
+
+Bất chấp thực tế vận hành này, toàn bộ nghiên cứu CRP trong hơn 15 năm qua chỉ tập trung vào single-crane. Khoảng cách giữa nghiên cứu hàn lâm và thực tiễn công nghiệp đặt ra câu hỏi cấp thiết: liệu kiến thức tích lũy từ CRP đơn crane — đặc biệt là các tiến bộ gần đây trong DRL~\cite{shin2026} — có thể được mở rộng sang môi trường đa crane mà không cần xây dựng lại từ đầu?
+
+\subsection{Các nghiên cứu liên quan}
+Nghiên cứu CRP đã phát triển qua ba thế hệ phương pháp. Thế hệ thứ nhất là các giải thuật heuristic như SSI của Lin et al.~\cite{lin2015}, phân loại stack của Kim et al.~\cite{kim2016}, và Leveling. Thế hệ thứ hai sử dụng metaheuristic: Tabu Search~\cite{forster2012}, GRASP~\cite{cifuentes2020}, và Genetic Programming~\cite{durasevic2025}. Thế hệ thứ ba là DRL: Shin et al.~\cite{shin2026} đạt gap 7.8\% so với chặn dưới trên bộ benchmark Lee~\cite{lee2010} — lần đầu tiên DRL vượt qua mọi giải thuật heuristic.
+
+Về vận hành đa crane, các nghiên cứu trước đây chỉ tập trung vào lập lịch cho crane bến tàu~\cite{sammarra2007} hoặc điều phối crane trong bãi~\cite{zhang2002}, chứ không phải bài toán lập trình thu hồi nội block. Chưa có công trình nào định nghĩa M-CRP, xây dựng chặn dưới, hoặc phân tích chuyển giao zero-shot.
+
+\subsection{Khoảng trống nghiên cứu và đóng góp}
+Cả ba thế hệ phương pháp CRP đều giả định vận hành \emph{single-crane}. M-CRP đặt ra ba thách thức chưa được giải quyết:
+\begin{enumerate}
+    \item \textbf{Phối hợp:} Crane phải tránh nhiễu không gian, yêu cầu mở rộng không gian trạng thái và hành động.
+    \item \textbf{Đánh giá:} Thiếu chặn dưới và bộ dữ liệu chuẩn cho đa crane.
+    \item \textbf{Chuyển giao:} Không biết policy single-crane có thể tái sử dụng cho đa crane hay không.
+\end{enumerate}
+
+Chúng tôi đóng góp: [C1] Định nghĩa M-CRP với bằng chứng NP-khó; [C2] Chặn dưới M-CRP (Định lý 3); [C3] Bốn chiến lược gán crane; [C4] Đánh giá thực nghiệm 1,120 lượt chạy; [C5] Bộ dữ liệu chuẩn công khai.
+
+\section{Bài toán M-CRP}
+
+\subsection{CRP đơn crane}
+Một instance CRP có $B$ bays, $R$ rows, $T$ tiers. $N$ container với độ ưu tiên $\{1,\dots,N\}$. Mục tiêu: $J = \sum_t (\text{travel}(a_t) + \text{handling} + \text{penalty})$ với tham số $t_{\text{acc}}=40$, $t_{\text{bay}}=3.5$, $t_{\text{row}}=1.2$, $t_{\text{pd}}=30$~\cite{shin2026}.
+
+\subsection{Định nghĩa M-CRP}
+\begin{definition}[M-CRP]
+Cho bãi $B \times R \times T$ với $C \geq 1$ crane và $N$ container với thứ tự thu hồi $\sigma$, tìm dãy hành động $\{(a_t,c_t)\}_{t=1}^\tau$ với $a_t$ là stack đích và $c_t \in \{1,\dots,C\}$, tối thiểu hóa:
+\begin{equation}
+    \min \sum_{c=1}^C \sum_{t=1}^{\tau_c} (\text{travel}_c(a_t) + \text{handling})
+\end{equation}
+với ràng buộc không gian (A6): $|\text{bay}_c(t) - \text{bay}_{c'}(t)| \geq 1,\; \forall c \neq c'$ và không vượt (A7): $\text{bay}_c(t) < \text{bay}_{c'}(t) \Rightarrow \text{bay}_c(t') < \text{bay}_{c'}(t'),\; \forall t' > t$.
+\end{definition}
+
+\begin{theorem}[NP-khó của M-CRP]
+M-CRP với $C \geq 1$ là NP-khó.
+\end{theorem}
+
+\subsection{Chặn dưới M-CRP (Định lý 3)}
+\begin{theorem}
+Với mọi instance M-CRP với $C$ crane:
+\begin{equation}
+    \LB_{\text{MCRP}} = \LB_{\text{retrieval}} + \frac{\LB_{\text{relocation}}}{C} + \LB_{\text{interference}}
+\end{equation}
+trong đó $\LB_{\text{interference}} = \max(0,\; \max_b(\text{reloc}_b) - \text{total\_relocs}/C) \times (t_{\text{acc}} + t_{\text{bay}})$.
+\end{theorem}
+
+\section{Phương pháp đề xuất}
+
+\subsection{Mô hình DRL cơ sở}
+Chúng tôi sử dụng mô hình pretrained của Shin et al.~\cite{shin2026}: encoder LSTM + 3 lớp multi-head self-attention + bay embedding; decoder cross-attention với tanh clipping; huấn luyện REINFORCE + POMO (M=16). Mô hình đạt gap 7.8\% trên Lee benchmark.
+
+\subsection{Kiến trúc suy luận tách rời}
+Chúng tôi tách policy đã đông lạnh khỏi vòng lặp môi trường. Từ $\theta^*$, trích xuất encoder $\mathcal{E}$ và scorer $\mathcal{D}$:
+\begin{align}
+    \{\mathbf{h}_i'\}, \mathbf{g} &= \mathcal{E}(s_t) \\
+    \mathbf{c} &= W_{\text{target}}\mathbf{h}_{\text{tgt}}' + W_{\text{global}}\mathbf{g} \\
+    u_i &= C \cdot \tanh(\mathbf{q}^\top W_{K2}\mathbf{h}_i' / \sqrt{d}) \\
+    d &= \arg\max_{i \in \mathcal{V}} u_i
+\end{align}
+
+\subsection{Bốn chiến lược gán crane}
+\begin{table}[h!]
+    \centering
+    \caption{Bốn chiến lược gán crane.}
+    \label{tab:strategies_vi}
+    \begin{tabularx}{\textwidth}{lXc}
+        \toprule
+        Chiến lược & Cơ chế & Độ phức tạp \\
+        \midrule
+        S1 RoundRobin & Gán vòng tròn: crane $(t \bmod C)$ nhận task $t$ & $O(1)$ \\
+        S2 ZoneSplit & Chia bay thành vùng tĩnh, mỗi crane phục vụ vùng riêng & $O(B)$ \\
+        S3 LoadBalance & Gán cho crane có ít task nhất & $O(C)$ \\
+        S4 GreedyOptimal & 1-step lookahead: chọn crane tối thiểu chi phí & $O(C^2)$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Thực nghiệm}
+
+\subsection{Thiết lập}
+140 instance M-CRP từ Lee benchmark, 2-3 crane, 2 tỷ lệ bãi (nhỏ 1-4 bays, trung bình 6-10 bays). Metric: $\text{Gap}(\LB_{\text{MCRP}})\%$. 1,120 runs, CPU laptop, $\approx$60 phút.
+
+\subsection{Kết quả đơn crane}
+ZeroShot đạt gap 5.63\%, outperforming Lin2015 (10.28\%) — cải thiện 4.65 điểm phần trăm.
+
+\subsection{Kết quả đa crane}
+\begin{table}[h!]
+    \centering
+    \caption{Kết quả M-CRP tổng thể.}
+    \label{tab:mc_vi}
+    \begin{tabularx}{\textwidth}{lcccc}
+        \toprule
+        Chiến lược & C=2 gap(\%) & C=3 gap(\%) & Nhiễu(C=2) & Nhiễu(C=3) \\
+        \midrule
+        S1 RoundRobin & $10.99 \pm 5.46$ & $11.19 \pm 6.59$ & $105.9$ & $147.2$ \\
+        \textbf{S2 ZoneSplit} & $\mathbf{10.46 \pm 5.28}$ & $\mathbf{10.71 \pm 6.44}$ & $\mathbf{0.5}$ & $\mathbf{0.7}$ \\
+        S3 LoadBalance & $10.99 \pm 5.46$ & $11.19 \pm 6.59$ & $105.9$ & $147.2$ \\
+        S4 GreedyOptimal & $10.48 \pm 5.28$ & $10.75 \pm 6.48$ & $0.0$ & $0.0$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Kiểm định Wilcoxon xác nhận S2 và S4 vượt trội hơn S1 và S3 ($p<0.001$). S2 vs S4 không khác biệt có ý nghĩa ($p>0.1$).
+
+\section{Thảo luận}
+
+\subsection{Tại sao Zero-shot Transfer hoạt động}
+Policy DRL học cách relocate container đến stack gần nhất có thể. ZoneSplit align với hành vi này bằng cách giới hạn mỗi crane trong vùng không gian riêng. Do policy đã học cách tránh relocation không hiệu quả, ZoneSplit giúp duy trì cấu trúc không gian của bài toán đơn crane.
+
+\subsection{Khuyến nghị thực tiễn}
+ZoneSplit (S2) được khuyến nghị: gap thấp nhất, gần như 0 nhiễu, $O(B)$, dễ triển khai.
+
+\subsection{Hạn chế}
+Mô phỏng tuần tự (một task mỗi bước) làm giảm lợi ích của song song hóa. Speedup C2$\to$C3 chỉ 1.01$\times$ (thực tế $\approx$1.5$\times$). Hạn chế này ảnh hưởng đều lên mọi chiến lược.
+
+\section{Kết luận}
+Bài báo trình bày định nghĩa, chặn dưới, và đánh giá thực nghiệm đầu tiên về zero-shot transfer cho M-CRP. Kết quả chính: (1) zero-shot transfer khả thi với gap 10.5\%; (2) ZoneSplit là chiến lược tốt nhất; (3) toàn bộ mã nguồn và dữ liệu được công bố.
+
+\section*{Tính khả dụng dữ liệu}
+Mã nguồn, dữ liệu, và kết quả: \url{https://github.com/sutobode/Master}.
+
+\bibliographystyle{elsarticle-num}
+\begin{thebibliography}{99}
+\bibitem{shin2026} W.-J. Shin et al. Learning to Retrieve Containers. \textit{Transportation Research Part C}, 2026.
+\bibitem{stahlbock2008} R. Stahlbock, S. Vo\ss. OR at container terminals. \textit{OR Spectrum}, 2008.
+\bibitem{lin2015} W.-C. Lin et al. CRP heuristic. \textit{Transportation Research Part E}, 2015.
+\bibitem{kim2016} K.-H. Kim et al. CRP with multiple cranes. \textit{IJPR}, 2016.
+\bibitem{lee2010} Y. Lee, Y.-J. Lee. CRP heuristic. \textit{OR Spectrum}, 2010.
+\bibitem{forster2012} F. Forster, A. Bortfeldt. TS for CRP. \textit{Computers \& OR}, 2012.
+\bibitem{cifuentes2020} S. Cifuentes, M.-C. Riff. GRASP for CRP. \textit{Expert Systems with Applications}, 2020.
+\bibitem{durasevic2025} M. Durasevic et al. GP for CRP. \textit{EJOR}, 2025.
+\bibitem{caserta2012} M. Caserta et al. Corridor method for BRP. \textit{OR Spectrum}, 2012.
+\bibitem{sammarra2007} M. Sammarra et al. Quay crane scheduling. \textit{Journal of Scheduling}, 2007.
+\bibitem{zhang2002} C. Zhang et al. Dynamic crane deployment. \textit{Transportation Research Part B}, 2002.
+\end{thebibliography}
+\end{document}
