@@ -288,6 +288,84 @@ def fig6_win_rate(df, output_dir='results/figures'):
     print(f'Saved: {path}')
 
 
+def fig7_single_crane_comparison(output_dir='results/figures'):
+    """Bar chart: all 7 single-crane baselines vs ZeroShot on 50 instances."""
+    os.makedirs(output_dir, exist_ok=True)
+    csv_path = 'results/final_comprehensive/single_crane_all_baselines.csv'
+    if not os.path.exists(csv_path):
+        print(f'SKIP fig7: {csv_path} not found (run run_comprehensive.py first)')
+        return
+
+    df = pd.read_csv(csv_path)
+    methods = ['Random', 'NearestStack', 'LowestHeight', 'Durasevic2025', 'Kim2016', 'Leveling', 'Lin2015', 'ZeroShot']
+    colors = ['#d62728', '#ff7f0e', '#ffbb78', '#bcbd22', '#2ca02c', '#98df8a', '#1f77b4', '#17becf']
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    x_pos = np.arange(len(methods))
+    means, errs = [], []
+    for m in methods:
+        col = f'{m}_gap' if m != 'ZeroShot' else 'zero_shot_gap'
+        if col in df.columns:
+            vals = df[col].dropna()
+            means.append(vals.mean())
+            errs.append(vals.std())
+        else:
+            means.append(0)
+            errs.append(0)
+
+    bars = ax.bar(x_pos, means, yerr=errs, capsize=5, color=colors, alpha=0.85, edgecolor='gray', linewidth=0.5)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(methods, rotation=30, ha='right')
+    ax.set_ylabel('Gap vs Lower Bound (%)')
+    ax.set_title('Single-Crane Comparison (50 Lee Instances)')
+    ax.grid(axis='y', alpha=0.3)
+
+    for bar, val in zip(bars, means):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f'{val:.1f}%',
+                ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+    plt.tight_layout()
+    path = os.path.join(output_dir, 'fig7_single_crane_comparison.png')
+    plt.savefig(path)
+    plt.close()
+    print(f'Saved: {path}')
+
+
+def fig8_multi_crane_baselines(output_dir='results/figures'):
+    """Grouped bar chart: ZS+S2 vs M-Lin2015 on all 140 instances."""
+    os.makedirs(output_dir, exist_ok=True)
+    csv_path = 'results/final_comprehensive/multi_crane_all_baselines.csv'
+    if not os.path.exists(csv_path):
+        print(f'SKIP fig8: {csv_path} not found')
+        return
+
+    df = pd.read_csv(csv_path)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    for ax, nc in [(ax1, 2), (ax2, 3)]:
+        sub = df[df['n_cranes'] == nc]
+        methods = sorted(sub['method'].unique())
+        x = np.arange(len(methods))
+        means = [sub[sub['method'] == m]['gap'].mean() for m in methods]
+        stds = [sub[sub['method'] == m]['gap'].std() for m in methods]
+        bars = ax.bar(x, means, yerr=stds, capsize=5, color=['#d62728', '#17becf'], alpha=0.85, edgecolor='gray')
+        ax.set_xticks(x)
+        ax.set_xticklabels(methods)
+        ax.set_ylabel('Gap vs LB_MCRP (%)')
+        ax.set_title(f'{int(nc)} Cranes')
+        ax.grid(axis='y', alpha=0.3)
+        for bar, val in zip(bars, means):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, f'{val:.1f}%',
+                    ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+    fig.suptitle('Multi-Crane Baseline Comparison (140 M-CRP Instances)', fontsize=14)
+    plt.tight_layout()
+    path = os.path.join(output_dir, 'fig8_multi_crane_baselines.png')
+    plt.savefig(path)
+    plt.close()
+    print(f'Saved: {path}')
+
+
 def generate_all(csv_path=None):
     if csv_path is None:
         csv_path = find_latest_csv()
@@ -321,6 +399,12 @@ def generate_all(csv_path=None):
 
     fig6_win_rate(df)
     report_lines.append('[OK] fig6_win_rate.png')
+
+    fig7_single_crane_comparison()
+    report_lines.append('[OK] fig7_single_crane_comparison.png')
+
+    fig8_multi_crane_baselines()
+    report_lines.append('[OK] fig8_multi_crane_baselines.png')
 
     report_path = 'results/figures/generation_report.txt'
     with open(report_path, 'w') as f:

@@ -7,3 +7,5 @@ Total runs: 1120
 [OK] fig4_interference.png
 [OK] fig5_speedup.png
 [OK] fig6_win_rate.png
+[OK] fig7_single_crane_comparison.png
+[OK] fig8_multi_crane_baselines.png

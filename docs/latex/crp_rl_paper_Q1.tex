@@ -470,7 +470,16 @@ We construct 140 M-CRP benchmark instances (Table~\ref{tab:dataset}) by extendin
 \subsection{Single-Crane Verification}
 \label{sec:results_single}
 
-Table~\ref{tab:single} presents a comprehensive comparison on the full 50-instance Lee benchmark. ZeroShot achieves a mean gap of 6.56\%, consistent with the reported Shin et al.~\cite{shin2026} baseline of 7.8\%. Critically, the full benchmark reveals that heuristic performance degrades substantially on larger instances: Lin2015 averages 22.42\% (vs 10.28\% on small instances), Kim2016 averages 41.08\%, and Durasevic2025 averages 47.33\%. ZeroShot outperforms the best heuristic (Lin2015) by 15.86 percentage points---a factor of 3.4$\times$ improvement---and outperforms all other baselines by 19--113 percentage points.
+Figure~\ref{fig:single_vis} visualizes the dramatic performance gap between ZeroShot and all heuristic baselines on the full 50-instance benchmark.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.85\textwidth]{../../results/figures/fig7_single_crane_comparison.png}
+    \caption{Single-crane comparison on 50 Lee instances. ZeroShot achieves 6.56\% gap, outperforming the best heuristic (Lin2015, 22.42\%) by 3.4$\times$ and all other baselines by 4--18$\times$.}
+    \label{fig:single_vis}
+\end{figure}
+
+Table~\ref{tab:single} presents the comprehensive comparison. ZeroShot achieves a mean gap of 6.56\%, consistent with the reported Shin et al.~\cite{shin2026} baseline of 7.8\%. Critically, the full benchmark reveals that heuristic performance degrades substantially on larger instances: Lin2015 averages 22.42\% (vs 10.28\% on small instances), Kim2016 averages 41.08\%, and Durasevic2025 averages 47.33\%. ZeroShot outperforms the best heuristic (Lin2015) by 15.86 percentage points---a factor of 3.4$\times$ improvement---and outperforms all other baselines by 19--113 percentage points.
 
 \begin{table}[h!]
     \centering
@@ -632,7 +641,14 @@ Table~\ref{tab:mc_baselines} compares ZeroShot+S2 against Lin2015~\cite{lin2015}
     \end{tabularx}
 \end{table}
 
-ZeroShot+S2 outperforms M-Lin2015 by 21.27--23.19 percentage points---approximately 3$\times$ better---confirming that learned DRL policies provide substantial advantages over hand-crafted heuristics in multi-crane settings.
+ZeroShot+S2 outperforms M-Lin2015 by 21.27--23.19 percentage points---approximately 3$\times$ better---confirming that learned DRL policies provide substantial advantages over hand-crafted heuristics in multi-crane settings. Figure~\ref{fig:mc_baselines_vis} visualizes this comparison.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.75\textwidth]{../../results/figures/fig8_multi_crane_baselines.png}
+    \caption{ZeroShot+S2 vs M-Lin2015 on 140 M-CRP instances. ZS+S2 achieves 10.46\% (C=2) and 10.74\% (C=3), outperforming M-Lin2015 (31.73\% and 33.93\%) by approximately 3$\times$.}
+    \label{fig:mc_baselines_vis}
+\end{figure}
 
 \subsection{Cost Decomposition}
 \label{sec:results_cost}
