@@ -157,6 +157,19 @@ CRP_RL/
 
 ## 5. Kết quả chính
 
+### Single-crane (50 Lee benchmark instances)
+
+| Method | Mean Gap(%) | Std(%) | So với ZeroShot |
+|--------|-------------|--------|----------------|
+| **ZeroShot (ours)** 🏆 | **6.56** | 2.35 | --- |
+| Lin2015 (SOTA heuristic) | 22.42 | 7.81 | +15.86pp (3.4× worse) |
+| Leveling | 25.55 | 8.43 | +18.99pp |
+| Kim2016 | 41.08 | 13.57 | +34.52pp |
+| Durasevic2025 (GP) | 47.33 | 15.32 | +40.77pp |
+| Random | 119.71 | 36.37 | +113.15pp |
+
+### Multi-crane (140 M-CRP instances)
+
 | Strategy | C=2 gap(%) | C=3 gap(%) | Interference | Complexity |
 |----------|-----------|-----------|-------------|-----------|
 | S1 RoundRobin | 10.99 ± 5.46 | 11.19 ± 6.59 | 105.9 ± 62.7 | O(1) |
@@ -164,12 +177,21 @@ CRP_RL/
 | S3 LoadBalance | 10.99 ± 5.46 | 11.19 ± 6.59 | 105.9 ± 62.7 | O(C) |
 | S4 GreedyOptimal | 10.48 ± 5.28 | 10.75 ± 6.48 | 0.0 ± 0.0 | O(C²) |
 
+### Multi-crane: ZeroShot+S2 vs Heuristic Baseline
+
+| Method | C=2 gap(%) | C=3 gap(%) Improvement |
+|--------|-----------|-----------|-----------|
+| M-Lin2015 (heuristic) | 31.73 | 33.93 | --- |
+| **ZS+S2 (ours)** 🏆 | **10.46** | **10.74** | **~3× lower gap** |
+
 ### Key findings
 
 1. **Zero-shot transfer HOẠT ĐỘNG** — gap 10-11% không cần retrain, 0 GPU
 2. **S2 ZoneSplit TỐT NHẤT** — gap thấp nhất, gần như 0 interference, O(B)
 3. **S2 vs S4 không khác biệt** (p > 0.1) — ZoneSplit đơn giản là đủ
 4. **Spatial awareness > task balancing** — S3 (LoadBalance) = S1 (RoundRobin)
+5. **Full benchmark cho thấy heuristic kém hơn nhiều** — Lin2015: 10.28% (4 inst) → 22.42% (50 inst)
+6. **ZS+S2 outperforms M-Lin2015 ~3×** — 10.46% vs 31.73% trên 140 M-CRP instances
 
 ---
 
