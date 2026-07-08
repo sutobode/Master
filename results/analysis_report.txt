@@ -1,6 +1,6 @@
 ================================================================================
 FULL EXPERIMENT ANALYSIS REPORT
-Source: unknown
+Source: (loaded from CSV)
 Total runs: 1120
 Instances: 140
 Configurations: 2 crane counts × 4 strategies
@@ -161,3 +161,6 @@ mc_U041608_002_c2.txt  20.94         211.0      336       4
 --- Performance Summary ---
   Average time per run: 3.195s
   Total experiment time: 3578.2s
+  Total steps across all runs: 282336
+  Average inference time per step: 12.67ms
+  Total cost across all runs: 42500161

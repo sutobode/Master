@@ -133,7 +133,7 @@ class MCRPAnalyzer:
         lines = []
         lines.append('=' * 80)
         lines.append('FULL EXPERIMENT ANALYSIS REPORT')
-        lines.append(f'Source: {os.path.basename(csv_path) if "csv_path" in dir() else "unknown"}')
+        lines.append(f'Source: (loaded from CSV)')
         lines.append(f'Total runs: {len(self.df)}')
         lines.append(f'Instances: {self.df["instance"].nunique()}')
         lines.append(f'Configurations: {self.df["n_cranes"].nunique()} crane counts × {self.df["strategy"].nunique()} strategies')
@@ -184,6 +184,10 @@ class MCRPAnalyzer:
         total_time = self.df['time_s'].sum()
         lines.append(f'  Average time per run: {avg_time:.3f}s')
         lines.append(f'  Total experiment time: {total_time:.1f}s')
+        steps_total = self.df['n_steps'].sum()
+        lines.append(f'  Total steps across all runs: {int(steps_total)}')
+        lines.append(f'  Average inference time per step: {total_time/steps_total*1000:.2f}ms')
+        lines.append(f'  Total cost across all runs: {self.df["cost"].sum():.0f}')
 
         report = '\n'.join(lines)
         report_path = os.path.join(output_dir, 'analysis_report.txt')
