@@ -1,0 +1,73 @@
+[21:50:35] Starting comprehensive experiment...
+[21:50:35] Datasets: ['Lee_random', 'Lee_upsidedown', 'Shin_random', 'Shin_upsidedown']
+[21:50:35] Methods: ['OriginalModel', 'ZeroShot', 'Lin2015', 'Kim2016', 'Leveling', 'Durasevic2025', 'NearestStack', 'LowestHeight']
+[21:50:35] Log file: logs/comprehensive_experiment_20260709_215035.txt
+[21:50:35] 
+======================================================================
+[21:50:35] DATASET: Lee_random (benchmarks/Lee_instances, random)
+[21:50:35] ======================================================================
+[21:50:35] Found 71 instance configurations
+[21:50:44]   [5/71] R011606_0070_005.txt | 40 runs | 10s elapsed | 4.1 runs/s
+[21:51:00]   [10/71] R011608_0090_005.txt | 80 runs | 25s elapsed | 3.2 runs/s
+[21:51:19]   [15/71] R021606_0140_004.txt | 120 runs | 45s elapsed | 2.7 runs/s
+[21:52:31]   [20/71] R021608_0190_004.txt | 160 runs | 116s elapsed | 1.4 runs/s
+[21:54:27]   [25/71] R041606_0280_004.txt | 200 runs | 232s elapsed | 0.9 runs/s
+[21:58:45]   [30/71] R041608_0380_004.txt | 240 runs | 490s elapsed | 0.5 runs/s
+[22:02:11]   [35/71] R061606_0430_004.txt | 280 runs | 697s elapsed | 0.4 runs/s
+[22:08:20]   [40/71] R061608_0570_004.txt | 320 runs | 1065s elapsed | 0.3 runs/s
+[22:12:19]   [45/71] R081606_0570_004.txt | 360 runs | 1305s elapsed | 0.3 runs/s
+[22:18:35]   [50/71] R101606_0720_004.txt | 400 runs | 1681s elapsed | 0.2 runs/s
+[22:20:53]   [55/71] U011608_0090_002.txt | 440 runs | 1819s elapsed | 0.2 runs/s
+[22:22:27]   [60/71] U041606_0280_001.txt | 480 runs | 1912s elapsed | 0.3 runs/s
+[22:26:39]   [65/71] U061606_0430_002.txt | 520 runs | 2164s elapsed | 0.2 runs/s
+[22:34:36]   [70/71] U101606_0720_001.txt | 560 runs | 2642s elapsed | 0.2 runs/s
+[22:36:26]   [71/71] U101606_0720_002.txt | 568 runs | 2751s elapsed | 0.2 runs/s
+[22:36:26]   Saved: results/comprehensive/Lee_random.csv (568 runs)
+[22:36:26] 
+======================================================================
+[22:36:26] DATASET: Lee_upsidedown (benchmarks/Lee_instances, upsidedown)
+[22:36:26] ======================================================================
+[22:36:26] Found 71 instance configurations
+[22:36:31]   SKIP: bay=1 tier=6 idx=3 - No file found matching the criteria: bays=1, stacks=16, tiers=6, id=3
+[22:36:31]   SKIP: bay=1 tier=6 idx=4 - No file found matching the criteria: bays=1, stacks=16, tiers=6, id=4
+[22:36:31]   SKIP: bay=1 tier=6 idx=5 - No file found matching the criteria: bays=1, stacks=16, tiers=6, id=5
+[22:36:38]   SKIP: bay=1 tier=8 idx=3 - No file found matching the criteria: bays=1, stacks=16, tiers=8, id=3
+[22:36:38]   SKIP: bay=1 tier=8 idx=4 - No file found matching the criteria: bays=1, stacks=16, tiers=8, id=4
+[22:36:38]   SKIP: bay=1 tier=8 idx=5 - No file found matching the criteria: bays=1, stacks=16, tiers=8, id=5
+[22:36:38]   SKIP: bay=2 tier=6 idx=1 - No file found matching the criteria: bays=2, stacks=3, tiers=6, id=1
+[22:36:50]   SKIP: bay=2 tier=6 idx=3 - No file found matching the criteria: bays=2, stacks=16, tiers=6, id=3
+[22:36:50]   SKIP: bay=2 tier=6 idx=4 - No file found matching the criteria: bays=2, stacks=16, tiers=6, id=4
+[22:36:50]   SKIP: bay=2 tier=6 idx=5 - No file found matching the criteria: bays=2, stacks=16, tiers=6, id=5
+[22:37:16]   SKIP: bay=2 tier=8 idx=3 - No file found matching the criteria: bays=2, stacks=16, tiers=8, id=3
+[22:37:16]   SKIP: bay=2 tier=8 idx=4 - No file found matching the criteria: bays=2, stacks=16, tiers=8, id=4
+[22:37:16]   SKIP: bay=2 tier=8 idx=5 - No file found matching the criteria: bays=2, stacks=16, tiers=8, id=5
+[22:38:35]   SKIP: bay=4 tier=6 idx=3 - No file found matching the criteria: bays=4, stacks=16, tiers=6, id=3
+[22:38:35]   SKIP: bay=4 tier=6 idx=4 - No file found matching the criteria: bays=4, stacks=16, tiers=6, id=4
+[22:38:35]   SKIP: bay=4 tier=6 idx=5 - No file found matching the criteria: bays=4, stacks=16, tiers=6, id=5
+[22:40:48]   SKIP: bay=4 tier=8 idx=3 - No file found matching the criteria: bays=4, stacks=16, tiers=8, id=3
+[22:40:48]   SKIP: bay=4 tier=8 idx=4 - No file found matching the criteria: bays=4, stacks=16, tiers=8, id=4
+[22:40:48]   SKIP: bay=4 tier=8 idx=5 - No file found matching the criteria: bays=4, stacks=16, tiers=8, id=5
+[22:42:20]   SKIP: bay=6 tier=6 idx=3 - No file found matching the criteria: bays=6, stacks=16, tiers=6, id=3
+[22:42:20]   SKIP: bay=6 tier=6 idx=4 - No file found matching the criteria: bays=6, stacks=16, tiers=6, id=4
+[22:42:20]   SKIP: bay=6 tier=6 idx=5 - No file found matching the criteria: bays=6, stacks=16, tiers=6, id=5
+[22:45:04]   SKIP: bay=6 tier=8 idx=3 - No file found matching the criteria: bays=6, stacks=16, tiers=8, id=3
+[22:45:04]   SKIP: bay=6 tier=8 idx=4 - No file found matching the criteria: bays=6, stacks=16, tiers=8, id=4
+[22:45:04]   SKIP: bay=6 tier=8 idx=5 - No file found matching the criteria: bays=6, stacks=16, tiers=8, id=5
+[22:46:54]   SKIP: bay=8 tier=6 idx=3 - No file found matching the criteria: bays=8, stacks=16, tiers=6, id=3
+[22:46:54]   SKIP: bay=8 tier=6 idx=4 - No file found matching the criteria: bays=8, stacks=16, tiers=6, id=4
+[22:46:54]   SKIP: bay=8 tier=6 idx=5 - No file found matching the criteria: bays=8, stacks=16, tiers=6, id=5
+[22:51:48]   SKIP: bay=10 tier=6 idx=3 - No file found matching the criteria: bays=10, stacks=16, tiers=6, id=3
+[22:51:48]   SKIP: bay=10 tier=6 idx=4 - No file found matching the criteria: bays=10, stacks=16, tiers=6, id=4
+[22:51:48]   SKIP: bay=10 tier=6 idx=5 - No file found matching the criteria: bays=10, stacks=16, tiers=6, id=5
+[22:52:16]   [55/71] U011608_0090_002.txt | 760 runs | 3702s elapsed | 0.2 runs/s
+[22:53:51]   [60/71] U041606_0280_001.txt | 800 runs | 3796s elapsed | 0.2 runs/s
+[22:57:41]   [65/71] U061606_0430_002.txt | 840 runs | 4027s elapsed | 0.2 runs/s
+[23:06:40]   [70/71] U101606_0720_001.txt | 880 runs | 4566s elapsed | 0.2 runs/s
+[23:09:36]   [71/71] U101606_0720_002.txt | 888 runs | 4742s elapsed | 0.2 runs/s
+[23:09:37]   Saved: results/comprehensive/Lee_upsidedown.csv (320 runs)
+[23:09:37] 
+======================================================================
+[23:09:37] DATASET: Shin_random (benchmarks/Shin_instances, random)
+[23:09:37] ======================================================================
+[23:09:37] Found 160 instance configurations
+[23:34:57]   [5/160] R201606_1440_005.txt | 928 runs | 6262s elapsed | 0.1 runs/s

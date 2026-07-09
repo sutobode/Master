@@ -1,0 +1,3 @@
+[21:49:36] Starting comprehensive experiment...
+[21:49:36] Datasets: ['Lee_random', 'Lee_upsidedown', 'Shin_random', 'Shin_upsidedown']
+[21:49:36] Methods: ['OriginalModel', 'ZeroShot', 'Lin2015', 'Kim2016', 'Leveling', 'Durasevic2025', 'NearestStack', 'LowestHeight']
