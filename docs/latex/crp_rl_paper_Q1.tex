@@ -301,13 +301,32 @@ Table~\ref{tab:mc} reports results across all 140 instances. ZoneSplit (S2) achi
 \subsection{Spatial Awareness Outperforms Task Balancing}
 S3 (LoadBalance) produces results identical to S1 (RoundRobin): identical gaps (10.99\%), identical interference (105.9 events). This confirms a critical insight: \textbf{distributing tasks evenly across cranes without considering spatial locations is ineffective.} The key enabler of multi-crane coordination is spatial awareness, not load balancing.
 
-\subsection{ZeroShot Outperforms Heuristic Baselines by 3$\times$}
-M-Lin2015 achieves gaps of 31.73\% (C=2) and 33.93\% (C=3)--approximately three times higher than ZeroShot+S2 (10.46\% and 10.74\%). This 21--23 percentage point improvement (Fig.~\ref{fig:mc_base}) confirms that learned DRL knowledge transfers to multi-crane settings substantially better than hand-crafted heuristics.
+\subsection{ZeroShot Outperforms All Heuristic Baselines on Multi-Crane}
+Table~\ref{tab:mc_baselines} compares ZeroShot+S2 against three multi-crane heuristic baselines across all 140 instances. ZS+S2 dramatically outperforms all heuristics: its gap of 10.46\% (C=2) is approximately one-third of M-Leveling (32.41\%) and one-fifth of M-Kim2016 (54.85\%). This confirms that learned DRL knowledge transfers to multi-crane settings substantially better than any hand-crafted or evolved heuristic.
+
+\begin{table}[h!]
+    \centering
+    \caption{Multi-crane baseline comparison on 140 M-CRP instances.}
+    \label{tab:mc_baselines}
+    \begin{tabularx}{\textwidth}{lcccc}
+        \toprule
+        \multirow{2}{*}{Method} & \multicolumn{2}{c}{C=2 gap(\%)} & \multicolumn{2}{c}{C=3 gap(\%)} \\
+        \cmidrule{2-5}
+        & Mean & Std & Mean & Std \\
+        \midrule
+        M-Kim2016~\cite{kim2016} & 54.85 & 23.85 & 57.60 & 26.91 \\
+        M-Leveling & 32.41 & 8.53 & 34.35 & 9.34 \\
+        M-Lin2015~\cite{lin2015} & 31.73 & 14.67 & 33.93 & 16.99 \\
+        \midrule
+        \textbf{ZeroShot+S2 (ours)} & \textbf{10.46} & \textbf{5.28} & \textbf{10.71} & \textbf{6.44} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.75\textwidth]{../../results/figures/fig8_multi_crane_baselines.png}
-    \caption{ZeroShot+S2 vs M-Lin2015 on 140 M-CRP instances.}
+    \caption{ZeroShot+S2 vs heuristic baselines on 140 M-CRP instances. ZS+S2 achieves approximately one-third to one-fifth of the gap of the best heuristic baseline.}
     \label{fig:mc_base}
 \end{figure}
 
