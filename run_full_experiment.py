@@ -1,7 +1,11 @@
 """Run full experiment in batches, saving intermediate results.
 
+Same protocol as experiment.py (Experiment 2), but batched and resumable:
+each batch is saved to disk immediately, so a large sweep (e.g. the 20/30-bay
+'large' scale) can be interrupted and resumed without losing progress.
+
 Usage:
-    python run_full_experiment.py
+    python run_full_experiment.py --batch_size 15
 """
 
 import os, sys, time, glob, torch, argparse
@@ -23,17 +27,14 @@ STRATEGY_MAP = {
 }
 
 
-def run_batch(instance_files, policy, args, output_csv, batch_id, n_batches):
+def run_batch(instance_files, policy, args, batch_id, n_batches):
     results = []
     n_total = len(instance_files) * len(args.cranes) * len(args.strategies)
     n_done = 0
 
     for fpath in instance_files:
         fname = os.path.basename(fpath)
-        try:
-            data_lines, file_cranes, crane_starts = parse_instance_file(fpath)
-        except Exception:
-            continue
+        data_lines, crane_starts = parse_instance_file(fpath)
 
         parts = fname.replace('.txt', '').split('_')
         dims = parts[1][1:]
@@ -44,30 +45,52 @@ def run_batch(instance_files, policy, args, output_csv, batch_id, n_batches):
         x = load_instance_tensor(data_lines, n_bays, n_rows, n_tiers)
 
         for n_cranes in args.cranes:
+            lb = compute_lb_mc(x, n_bays, n_rows, n_tiers, n_cranes)
+            lb_work = lb['work'][0].item()
+            lb_makespan = lb['makespan'][0].item()
+
             for sname in args.strategies:
                 StrategyCls = STRATEGY_MAP[sname]
                 strategy = StrategyCls(n_cranes, n_bays, n_rows)
-                env = MCEnv(
-                    'cpu', x, n_cranes,
-                    crane_start_bays=crane_starts if n_cranes == file_cranes else None
-                )
+                env = MCEnv('cpu', x, n_cranes, crane_start_bays=crane_starts.get(n_cranes))
                 t0 = time.time()
                 result = run_mcrp_episode(policy, env, strategy, n_bays, n_rows, n_tiers)
                 elapsed = time.time() - t0
 
-                lb = compute_lb_mc(x, n_bays, n_rows, n_tiers, n_cranes).item()
-                gap = 100 * (result['total_cost'] - lb) / lb if lb > 0 else 0.0
+                gap_work = 100 * (result['total_cost'] - lb_work) / lb_work if lb_work > 0 else 0.0
+                makespan = result.get('makespan')
+                gap_makespan = (
+                    100 * (makespan - lb_makespan) / lb_makespan
+                    if makespan is not None and lb_makespan > 0 else None
+                )
+                eps = 1e-6
+                assert gap_work >= -eps * max(1.0, lb_work), (
+                    f'Negative work gap on {fname} C={n_cranes} {sname}: '
+                    f'cost={result["total_cost"]:.1f} < LB={lb_work:.1f} — bound invalid'
+                )
+                if gap_makespan is not None:
+                    assert gap_makespan >= -eps * max(1.0, lb_makespan), (
+                        f'Negative makespan gap on {fname} C={n_cranes} {sname}: '
+                        f'makespan={makespan:.1f} < LB={lb_makespan:.1f} — bound invalid'
+                    )
 
                 results.append({
                     'instance': fname,
                     'n_cranes': n_cranes,
                     'strategy': sname,
-                    'cost': round(result['total_cost'], 1),
-                    'lb_mc': round(lb, 1),
-                    'gap': round(gap, 2),
+                    'total_cost': result['total_cost'],
+                    'makespan': makespan,
+                    'lb_work': lb_work,
+                    'lb_makespan': lb_makespan,
+                    'gap_work': round(max(gap_work, 0.0), 2),
+                    'gap_makespan': round(max(gap_makespan, 0.0), 2) if gap_makespan is not None else None,
                     'n_steps': result['n_steps'],
                     'interference': result['n_interference'],
+                    'interference_wait': round(result.get('interference_wait', 0.0), 2),
+                    'a7_reassignments': result.get('a7_reassignments', 0),
+                    'a7_violations': result.get('a7_violations', 0),
                     'time_s': round(elapsed, 3),
+                    'per_crane_cost': str(result['per_crane_cost']),
                 })
                 n_done += 1
 
@@ -79,7 +102,7 @@ def run_batch(instance_files, policy, args, output_csv, batch_id, n_batches):
                     print(
                         f'  [{n_done}/{n_total}] ({pct:.0f}%) '
                         f'{fname} C={n_cranes} {sname} '
-                        f'gap={gap:.1f}% | {remaining:.0f}s remaining'
+                        f'gap_w={gap_work:.1f}% | {remaining:.0f}s remaining'
                     )
 
     return results
@@ -117,6 +140,7 @@ def main():
     os.makedirs('results', exist_ok=True)
 
     all_results = []
+    df = pd.DataFrame()
 
     for batch_start in range(0, len(files), args.batch_size):
         batch_files = files[batch_start:batch_start + args.batch_size]
@@ -128,10 +152,7 @@ def main():
               f'(instances {batch_start+1}-{batch_start+len(batch_files)}, '
               f'bays {min(batch_bays)}-{max(batch_bays)}) ===')
 
-        batch_results = run_batch(
-            batch_files, policy, args, output_csv,
-            batch_id, n_batches
-        )
+        batch_results = run_batch(batch_files, policy, args, batch_id, n_batches)
         all_results.extend(batch_results)
 
         df = pd.DataFrame(all_results)
@@ -145,9 +166,10 @@ def main():
     print(f'Total: {len(all_results)} runs in {total_time:.1f}s')
     print(f'Results saved: {output_csv}')
 
-    summary = df.groupby(['n_cranes', 'strategy'])['gap'].agg(['mean', 'std', 'min', 'max'])
-    print('\n=== Summary ===')
-    print(summary.to_string())
+    if len(df) > 0:
+        summary = df.groupby(['n_cranes', 'strategy'])[['gap_work', 'gap_makespan']].agg(['mean', 'std', 'min', 'max'])
+        print('\n=== Summary ===')
+        print(summary.to_string())
 
 
 if __name__ == '__main__':

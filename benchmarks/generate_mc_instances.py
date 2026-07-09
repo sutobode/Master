@@ -1,4 +1,12 @@
-"""Generate M-CRP benchmark instances from Lee & Lee and Shin et al. instances."""
+"""Generate M-CRP benchmark layouts from the Lee & Lee (2010) instances.
+
+One file per unique yard layout. The crane count C is an EXPERIMENT
+parameter, not a dataset dimension: earlier revisions emitted `_c2`/`_c3`
+twins with byte-identical yard content, which double-counted every layout
+(140 files for 70 layouts) and invalidated instance-count statistics.
+Each file carries the deterministic crane start bays for C=2 and C=3 as
+header metadata.
+"""
 
 import os
 from benchmarks.benchmarks import find_and_process_file
@@ -13,10 +21,29 @@ ORIGINAL_DIR = 'benchmarks/Lee_instances'
 OUTPUT_DIR = 'benchmarks/mc_instances'
 
 
-def generate_all():
-    os.makedirs(f'{OUTPUT_DIR}/lee_mc', exist_ok=True)
-    count = 0
+def crane_start_bays(n_bays, n_cranes):
+    """Deterministic evenly-spread start bays, strictly increasing when the
+    yard has enough bays (respects the A7 left-to-right crane order)."""
+    starts = []
+    for c in range(n_cranes):
+        starts.append(max(1, min(n_bays, c * n_bays // n_cranes + 1)))
+    return starts
 
+
+def generate_all(output_dir=None):
+    """Regenerate M-CRP layouts. DESTRUCTIVE: deletes every .txt file under
+    `output_dir` (default benchmarks/mc_instances/lee_mc, the real dataset)
+    before writing. Tests must pass a temp `output_dir` — never call this
+    against the real directory from a test, it will destroy hand-curated or
+    previously-generated instances with no way back except `git checkout`."""
+    out_dir = output_dir or f'{OUTPUT_DIR}/lee_mc'
+    os.makedirs(out_dir, exist_ok=True)
+
+    for old in os.listdir(out_dir):
+        if old.endswith('.txt'):
+            os.remove(os.path.join(out_dir, old))
+
+    count = 0
     for inst_type in ['random', 'upsidedown']:
         type_count = 0
         for scale_name, spec in SCALES.items():
@@ -35,36 +62,27 @@ def generate_all():
                             except (FileNotFoundError, ValueError):
                                 continue
 
-                            for n_cranes in [2, 3]:
-                                if n_cranes == 2:
-                                    starts = [1, max(1, bay // 2 + 1)]
-                                else:
-                                    starts = [1, max(1, bay // 3 + 1), max(1, 2 * bay // 3 + 1)]
+                            type_prefix = 'R' if inst_type == 'random' else 'U'
+                            out_name = f'mc_{type_prefix}{bay:02d}{row:02d}{tier:02d}_{idx:03d}.txt'
+                            out_path = os.path.join(out_dir, out_name)
 
-                                type_prefix = 'R' if inst_type == 'random' else 'U'
-                                out_name = (
-                                    f'mc_{type_prefix}{bay:02d}{row:02d}{tier:02d}'
-                                    f'_{idx:03d}_c{n_cranes}.txt'
-                                )
-                                out_path = f'{OUTPUT_DIR}/lee_mc/{out_name}'
+                            subdir = (
+                                'individual, random'
+                                if inst_type == 'random'
+                                else 'individual, upside down'
+                            )
+                            orig_path = os.path.join(ORIGINAL_DIR, subdir, name)
+                            with open(orig_path, 'r') as f_in:
+                                content = f_in.read()
+                            with open(out_path, 'w') as f_out:
+                                f_out.write(f'# crane_start_bays_c2 = {crane_start_bays(bay, 2)}\n')
+                                f_out.write(f'# crane_start_bays_c3 = {crane_start_bays(bay, 3)}\n')
+                                f_out.write(content)
+                            count += 1
+                            type_count += 1
+        print(f'Generated {type_count} layouts for type={inst_type}')
 
-                                subdir = (
-                                    'individual, random'
-                                    if inst_type == 'random'
-                                    else 'individual, upside down'
-                                )
-                                orig_path = os.path.join(ORIGINAL_DIR, subdir, name)
-                                with open(orig_path, 'r') as f_in:
-                                    content = f_in.read()
-                                with open(out_path, 'w') as f_out:
-                                    f_out.write(f'# n_cranes = {n_cranes}\n')
-                                    f_out.write(f'# crane_start_bays = {starts}\n')
-                                    f_out.write(content)
-                                count += 1
-                                type_count += 1
-        print(f'Generated {type_count} instances for type={inst_type}')
-
-    print(f'Total: {count} M-CRP instances in {OUTPUT_DIR}/lee_mc/')
+    print(f'Total: {count} unique M-CRP layouts in {out_dir}/')
     return count
 
 

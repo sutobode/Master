@@ -240,6 +240,13 @@ def run_case_study():
 # MAIN
 # ============================================================
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: uses the pre-revision parse_instance_file()/compute_lb_mc() '
+        'API and old _c2/_c3-suffixed instance filenames, neither of which exist '
+        'anymore, plus a results/ CSV name hardcoded to an old run. '
+        'Use `analysis.run_mc_baselines_v2` + `analysis.analyze` instead — '
+        'see README.md.'
+    )
     # Find latest experiment CSV
     latest_csv = sorted(glob.glob('results/mcrp_experiment_20260708_*.csv'))
     if latest_csv:

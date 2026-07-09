@@ -1,5 +1,10 @@
 # SESSION HANDOFF: M-CRP Zero-shot Transfer
 
+> ⚠️ **10/07/2026 — Đang trong quá trình sửa lỗi lớn phát hiện qua ultra-review (Theorem 3 sai, cost-model bug, dataset double-count...).**
+> **Mọi số liệu/claims trong phần dưới đây (8.x.2026) hiện KHÔNG còn đúng** — paper và code đã thay đổi đáng kể, thí nghiệm cần chạy lại.
+> Đọc `docs/superpowers/plans/2026-07-10-revision-handoff.md` TRƯỚC — đó là bàn giao mới nhất, có đầy đủ danh sách thay đổi + lệnh chạy lại.
+> Nội dung gốc bên dưới giữ nguyên làm tham chiếu lịch sử (kết quả cũ đã submit-ready trước khi phát hiện lỗi).
+
 > **Cập nhật lần cuối:** 08/07/2026  
 > **Git commit gần nhất:** `e7683e1`  
 > **Mục đích:** File này ghi lại toàn bộ context để session tiếp theo có thể nắm bắt ngay lập tức.

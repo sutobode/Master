@@ -1,142 +1,126 @@
-# 📋 KẾ HOẠCH THỰC NGHIỆM TOÀN DIỆN
-## Zero-shot Transfer of Single-Crane DRL Policies for M-CRP
+# 📋 KẾ HOẠCH THỰC NGHIỆM ĐẦY ĐỦ
+
+## Mục tiêu: Chạy TẤT CẢ methods trên TẤT CẢ datasets
 
 ---
 
-## 1. TỔNG QUAN DATASETS
+## 1. TRẠNG THÁI HIỆN TẠI
 
-| Dataset | Path | Random | Upside-down | Total | Ghi chú |
-|---------|------|--------|-------------|-------|---------|
-| **Lee benchmark** | `benchmarks/Lee_instances/` | 51 files | 20 files | **71** | Standard CRP benchmark |
-| **Shin et al. instances** | `benchmarks/Shin_instances/` | ~80 files | ~80 files | **160** | Paper's own test set |
-| **M-CRP instances** | `benchmarks/mc_instances/` | 70 files | 70 files | **140** | Our extension |
-| **Tổng single-crane** | | ~131 | ~100 | **231** | |
-| **Tổng multi-crane** | | 70 | 70 | **140** | |
+### ✅ Đã hoàn thành: 2,368 runs
 
----
+| Dataset | Methods | Runs | Status |
+|---------|---------|------|--------|
+| **Lee_random** (71 instances) | ZeroShot, OriginalModel, Lin2015, Kim2016, Leveling, Durasevic2025, NearestStack, LowestHeight | 568 | ✅ |
+| **Lee_upsidedown** (40 instances) | ZeroShot, OriginalModel, Lin2015, Kim2016, Leveling, Durasevic2025, NearestStack, LowestHeight | 320 | ✅ |
+| **M-CRP (140 instances × 2 cranes)** | S1 RoundRobin, S2 ZoneSplit, S3 LoadBalance, S4 GreedyOptimal | 1,120 | ✅ |
+| **M-CRP baselines (140 instances × 2 cranes)** | M-Lin2015, M-Kim2016, M-Leveling | 280 | ✅ |
+| **Backward compatibility** | ZeroShot(C=1) vs OriginalModel | 5 | ✅ |
+| **Cost decomposition** | All strategies | 1,120 | ✅ |
+| **Case study (6-bay)** | S1 vs S2 | 2 | ✅ |
+| **Tổng** | | **~2,415** | ✅ |
 
-## 2. METHODS (BASELINES + PROPOSED)
+### ❌ Chưa chạy:
 
-### 2.1 Single-crane Methods (8 methods)
-
-| ID | Method | Code | Loại | Tốc độ | Đã chạy? |
-|----|--------|------|------|--------|---------|
-| M0 | **Original Model (Shin et al.)** | `Model` class, `epoch(100).pt` | SOTA DRL | ~0.5s/inst | ❌ Chưa trên Shin + LeeUD |
-| M1 | **ZeroShot (ours)**  | `ZeroShotPolicy` | Proposed | ~0.5s/inst | ❌ Chưa trên Shin + LeeUD |
-| M2 | Lin2015 | `baselines/lin2015.py` | Heuristic | ~0.3s/inst | ❌ Chưa trên Shin + LeeUD |
-| M3 | Kim2016 | `baselines/kim2016.py` | Heuristic | ~0.3s/inst | ❌ Chưa trên Shin + LeeUD |
-| M4 | Leveling | `baselines/leveling.py` | Heuristic | ~0.3s/inst | ❌ Chưa trên Shin + LeeUD |
-| M5 | Durasevic2025 | `baselines/durasevic2025.py` | GP-evolved | ~0.5s/inst | ❌ Chưa trên Shin + LeeUD |
-| M6 | NearestStack | `baselines/simple_baselines.py` | Simple | ~0.2s/inst | ❌ Chưa trên Shin + LeeUD |
-| M7 | LowestHeight | `baselines/simple_baselines.py` | Simple | ~0.2s/inst | ❌ Chưa trên Shin + LeeUD |
-
-### 2.2 Multi-crane Methods (7 methods)
-
-| ID | Method | Code | Loại | Đã chạy? |
-|----|--------|------|------|---------|
-| MC1-S1 | ZeroShot + RoundRobin | `strategies/round_robin.py` | Proposed | ✅ 140 inst |
-| MC1-S2 | ZeroShot + ZoneSplit | `strategies/zone_split.py` | Proposed | ✅ 140 inst |
-| MC1-S3 | ZeroShot + LoadBalance | `strategies/load_balance.py` | Proposed | ✅ 140 inst |
-| MC1-S4 | ZeroShot + GreedyOptimal | `strategies/greedy_optimal.py` | Proposed | ✅ 140 inst |
-| MC2 | M-Lin2015 | Lin2015 + ZoneSplit | Heuristic | ✅ 140 inst |
-| MC3 | M-Kim2016 | Kim2016 + ZoneSplit | Heuristic | ✅ 140 inst |
-| MC4 | M-Leveling | Leveling + ZoneSplit | Heuristic | ✅ 140 inst |
+| Dataset | Lý do | Thời gian dự kiến |
+|---------|-------|-------------------|
+| **Shin_random** (80 inst, 20-30 bays, 1,440-2,880 containers) | Instances quá lớn → heuristics rất chậm | **~30-45 phút** (chỉ ZeroShot + OriginalModel) |
+| **Shin_upsidedown** (80 inst) | Tương tự | **~30-45 phút** |
+| **BeamSearchCRP** trên subset | Baseline advanced chưa chạy | **~15 phút** (3 instances) |
+| **Chi tiết per-bay breakdown** (Table cho từng B=1,2,4,6,8,10) | Đã có data, cần tổng hợp | ~5 phút |
 
 ---
 
-## 3. KẾ HOẠCH CHẠY THEO BATCH
+## 2. KẾ HOẠCH CHẠY BỔ SUNG
 
-### Phase A: Chạy single-crane trên datasets còn thiếu
+### Phase 1: Shin instances (quan trọng nhất)
 
-**Mục tiêu:** Chạy 8 methods trên 180 instances chưa test (Shin_random + Shin_upsidedown + Lee_upsidedown)
+Chạy ZeroShot + OriginalModel trên 160 Shin instances để so sánh với paper gốc.
 
-| Batch | Dataset | Methods | Runs | Thời gian | Log file |
-|-------|---------|---------|------|-----------|----------|
-| **A1** | Shin_random (~80) | M0 + M1 (Original + ZeroShot) | ~160 | ~2 phút | `logs/batch_A1_shin_random_original_zs.txt` |
-| **A2** | Shin_upsidedown (~80) | M0 + M1 (Original + ZeroShot) | ~160 | ~2 phút | `logs/batch_A2_shin_ud_original_zs.txt` |
-| **A3** | Lee_upsidedown (20) | M0 + M1 (Original + ZeroShot) | ~40 | ~1 phút | `logs/batch_A3_lee_ud_original_zs.txt` |
-| **A4** | Shin_random (~80) | M2-M7 (6 heuristics) | ~480 | ~3 phút | `logs/batch_A4_shin_random_heuristics.txt` |
-| **A5** | Shin_upsidedown (~80) | M2-M7 (6 heuristics) | ~480 | ~3 phút | `logs/batch_A5_shin_ud_heuristics.txt` |
-| **A6** | Lee_upsidedown (20) | M2-M7 (6 heuristics) | ~120 | ~1 phút | `logs/batch_A6_lee_ud_heuristics.txt` |
-
-**Tổng Phase A:** ~1,440 runs, ~12 phút
-
-### Phase B: So sánh Original Model vs ZeroShot
-
-| Batch | Nội dung | Runs | Thời gian | Log file |
-|-------|----------|------|-----------|----------|
-| **B1** | Paired comparison trên ALL 231 instances | 231 | ~5 phút | `logs/batch_B1_original_vs_zs_analysis.txt` |
-| B1 includes: | Gap difference, correlation, % diff | -- | -- | -- |
-| | Instances where diff > 2% | -- | -- | -- |
-
-### Phase C: Cập nhật Paper
-
-| Step | Nội dung | Thời gian |
-|------|----------|-----------|
-| C1 | Update Table 1: thêm Shin + LeeUD results | ~15 phút |
-| C2 | Update Table 2: Multi-crane results (đã có) | ~5 phút |
-| C3 | Update Table 3: Multi-crane baselines (đã có) | ~5 phút |
-| C4 | Thêm "Original Model vs ZeroShot" comparison section | ~15 phút |
-| C5 | Update figures với data mới | ~10 phút |
-| C6 | Compile + review | ~10 phút |
-
----
-
-## 4. CHI TIẾT LOGGING
-
-Mỗi batch sẽ ghi log ra file riêng với format:
-
-```
-=== BATCH A1: Shin_random - Original Model + ZeroShot ===
-Started: 2026-07-09 22:00:00
-Instance: Shin_R011606_001 -> Original cost=4807.2 ZeroShot cost=4713.6 diff=1.95%
-Instance: Shin_R011606_002 -> Original cost=4872.0 ZeroShot cost=4793.0 diff=1.63%
-...
-[50/160] 25% complete | 90s remaining
-...
-Completed: 160 runs in 125s
-Results saved: results/comprehensive/phase_A1.csv
-```
-
-### Metrics ghi lại cho mỗi run:
-- `instance`: tên file
-- `dataset`: Lee_random / Lee_UD / Shin_random / Shin_UD
-- `method`: OriginalModel / ZeroShot / Lin2015 / ...
-- `cost`: total working time
-- `lb`: lower bound
-- `gap`: gap(%)
-- `time_s`: thời gian chạy
-- `n_steps`: số steps
-
----
-
-## 5. CODE THỰC HIỆN
+| Batch | Dataset | Methods | Runs | Thời gian | Lệnh |
+|-------|---------|---------|------|-----------|-------|
+| **S1** | Shin_random (80) | ZeroShot + OriginalModel | 160 | ~20 phút | `python analysis/run_shin_zs_original.py --type random` |
+| **S2** | Shin_upsidedown (80) | ZeroShot + OriginalModel | 160 | ~20 phút | `python analysis/run_shin_zs_original.py --type upsidedown` |
 
 ```bash
-# Gộp tất cả vào 1 script duy nhất:
-python analysis/run_comprehensive_experiments.py
-# Script này sẽ:
-#   1. Chạy Phase A1-A6 tuần tự
-#   2. Ghi log từng batch
-#   3. Lưu kết quả vào results/comprehensive/
-#   4. Chạy Phase B1 (so sánh Original vs ZeroShot)
-#   5. Tạo summary tables cho paper
+# Script chạy Shin instances:
+# analysis/run_shin_zs_original.py
+# Output: results/shin_zeroshot_original.csv (320 runs)
+# Log: logs/shin_experiment_YYYYMMDD_HHMMSS.txt
+```
+
+### Phase 2: Heuristics trên Shin subset (optional)
+
+Chạy heuristics trên 20 Shin instances nhỏ nhất (20 bays, 6 tiers).
+
+| Batch | Dataset | Methods | Runs | Thời gian |
+|-------|---------|---------|------|-----------|
+| **S3** | Shin 20-bay × 6-tier (10 inst) | Lin2015, Kim2016, Leveling | 30 | ~5 phút |
+| **S4** | Shin 20-bay × 6-tier (10 inst) | Durasevic2025 | 10 | ~20 phút |
+
+### Phase 3: BeamSearchCRP (optional)
+
+| Batch | Dataset | Runs | Thời gian |
+|-------|---------|------|-----------|
+| **S5** | 3 Lee instances nhỏ (1-bay) | 3 | ~15 phút |
+
+---
+
+## 3. TỔNG HỢP KẾT QUẢ MONG ĐỢI
+
+Sau khi chạy xong Phase 1, bảng so sánh sẽ đầy đủ:
+
+| Dataset | ZeroShot | OriginalModel | Lin2015 | Leveling | Kim2016 | Durasevic2025 |
+|---------|----------|---------------|---------|----------|---------|---------------|
+| **Lee_random** (71) | 6.77% | 7.87% | 22.30% | 25.31% | 41.12% | 47.52% |
+| **Lee_UD** (40) | 4.71% | 5.61% | 22.62% | 18.30% | 50.00% | 58.09% |
+| **Shin_random** (80) | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| **Shin_UD** (80) | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+
+---
+
+## 4. FILE LOGGING
+
+Mỗi batch ghi log riêng, progress bar rõ ràng:
+
+```
+logs/
+├── shin_experiment_20260710_120000.txt    # Phase 1
+├── shin_heuristics_20260710_130000.txt    # Phase 2
+└── beamsearch_20260710_140000.txt         # Phase 3
+
+results/
+├── shin_zeroshot_original.csv             # Phase 1 output
+├── shin_heuristics_subset.csv             # Phase 2 output
+├── beamsearch_subset.csv                  # Phase 3 output
+└── comprehensive_summary.csv              # Tổng hợp tất cả
 ```
 
 ---
 
-## 6. TIMELINE DỰ KIẾN
+## 5. TÁC ĐỘNG ĐẾN PAPER
 
-| Phase | Thời gian | Có thể theo dõi? |
-|-------|-----------|-----------------|
-| A1 + A2 (Shin: Original + ZS) | ~4 phút | ✅ progress bar + log |
-| A3 (LeeUD: Original + ZS) | ~1 phút | ✅ |
-| A4 + A5 (Shin: heuristics) | ~6 phút | ✅ |
-| A6 (LeeUD: heuristics) | ~1 phút | ✅ |
-| B1 (Analysis) | ~5 phút | ✅ |
-| C (Paper update) | ~60 phút | Thủ công |
-| **Tổng** | **~1.5 giờ** | |
+Sau khi chạy xong, paper cần cập nhật:
+
+| Phần | Cập nhật |
+|------|----------|
+| Abstract | Thêm Shin instances results |
+| Table I (SOTA) | Thêm dòng Shin instances |
+| Table III (Single-crane) | Mở rộng với Shin data |
+| Section 6.1 | Phân tích thêm Shin results |
+| Section 6.5 (Sensitivity) | Thêm discussion về dataset sensitivity |
+| Appendix | Thêm Shin result tables |
 
 ---
 
-Bạn duyệt plan này để tôi bắt đầu chạy nhé?
+## 6. TỔNG THỜI GIAN DỰ KIẾN
+
+| Phase | Thời gian | Ưu tiên | 
+|-------|-----------|---------|
+| **S1+S2: Shin ZeroShot + Original** | **~40 phút** | 🔴 **P0 - Phải chạy** |
+| S3+S4: Heuristics Shin subset | ~25 phút | 🟡 P1 - Nên chạy |
+| S5: BeamSearch subset | ~15 phút | 🟢 P2 - Optional |
+| **Tổng** | **~80 phút** | |
+
+---
+
+Bạn muốn tôi bắt đầu chạy Phase 1 (Shin instances, ~40 phút) ngay bây giờ không?

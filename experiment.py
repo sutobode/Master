@@ -35,23 +35,27 @@ def parse_args():
 
 
 def parse_instance_file(path):
+    """Parse an M-CRP layout file.
+
+    Returns (data_lines, crane_starts) where crane_starts maps a crane
+    count C -> list of start bays. One file per unique layout; the crane
+    count is an experiment parameter (see benchmarks/generate_mc_instances.py).
+    """
     with open(path, 'r') as f:
         lines = f.readlines()
 
-    n_cranes = 2
-    crane_starts = [1, 2]
+    crane_starts = {}
     data_lines = []
 
     for line in lines:
-        if line.startswith('# n_cranes'):
-            n_cranes = int(line.split('=')[1].strip())
-        elif line.startswith('# crane_start'):
-            starts_str = line.split('=')[1].strip()
-            crane_starts = eval(starts_str)
+        if line.startswith('# crane_start_bays_c'):
+            key, _, val = line.partition('=')
+            c = int(key.strip().rsplit('_c', 1)[1])
+            crane_starts[c] = eval(val.strip())
         elif line.strip() and not line.startswith('#'):
             data_lines.append(line)
 
-    return data_lines, n_cranes, crane_starts
+    return data_lines, crane_starts
 
 
 def load_instance_tensor(data_lines, n_bays, n_rows, n_tiers):
@@ -104,9 +108,10 @@ def verify_backward_compatibility(policy):
 
     cost_diff_pct = 100 * abs(result['total_cost'] - wt_orig[0].item()) / wt_orig[0].item()
     print(f'  Backward compat C=1: original={wt_orig[0].item():.1f}, zero-shot={result["total_cost"]:.1f}, diff={cost_diff_pct:.2f}%')
-    assert cost_diff_pct < 2.0, (
+    assert cost_diff_pct < 0.01, (
         f'Backward compatibility FAILED: zero-shot cost ({result["total_cost"]:.1f}) '
-        f'differs from original ({wt_orig[0].item():.1f}) by {cost_diff_pct:.2f}%'
+        f'differs from original ({wt_orig[0].item():.1f}) by {cost_diff_pct:.2f}% '
+        f'(C=1 must be numerically identical to the original Env)'
     )
     print(f'  [PASS] Backward compatibility verified (diff={cost_diff_pct:.2f}%)')
 
@@ -129,10 +134,10 @@ def run_experiment(args):
 
     for fpath in files:
         fname = os.path.basename(fpath)
-        data_lines, file_cranes, crane_starts = parse_instance_file(fpath)
+        data_lines, crane_starts = parse_instance_file(fpath)
 
         parts = fname.replace('.txt', '').split('_')
-        # parts: ['mc', 'R021606', '001', 'c2']
+        # parts: ['mc', 'R021606', '001']
         dims = parts[1][1:]
         n_bays = int(dims[0:2])
         n_rows = int(dims[2:4])
@@ -141,30 +146,60 @@ def run_experiment(args):
         x = load_instance_tensor(data_lines, n_bays, n_rows, n_tiers)
 
         for n_cranes in args.cranes:
+            # The lower bound depends only on (x, n_cranes), not on strategy;
+            # compute it once per crane count instead of once per strategy.
+            lb = compute_lb_mc(x, n_bays, n_rows, n_tiers, n_cranes)
+            lb_work = lb['work'][0].item()
+            lb_makespan = lb['makespan'][0].item()
+
             for sname in args.strategies:
                 StrategyCls = STRATEGY_MAP[sname]
                 strategy = StrategyCls(n_cranes, n_bays, n_rows)
                 env = MCEnv(
                     'cpu', x, n_cranes,
-                    crane_start_bays=crane_starts if n_cranes == file_cranes else None
+                    crane_start_bays=crane_starts.get(n_cranes)
                 )
 
                 t0 = time.time()
                 result = run_mcrp_episode(policy, env, strategy, n_bays, n_rows, n_tiers)
                 elapsed = time.time() - t0
 
-                lb = compute_lb_mc(x, n_bays, n_rows, n_tiers, n_cranes).item()
-                gap = 100 * (result['total_cost'] - lb) / lb if lb > 0 else 0.0
+                gap_work = 100 * (result['total_cost'] - lb_work) / lb_work if lb_work > 0 else 0.0
+                makespan = result.get('makespan')
+                gap_makespan = (
+                    100 * (makespan - lb_makespan) / lb_makespan
+                    if makespan is not None and lb_makespan > 0 else None
+                )
+                # Relative epsilon: chained float/tensor accumulation across
+                # env.py/mcenv.py/lowerbound_mc.py can leave a schedule that
+                # exactly meets the bound a few ULPs below it; only a real
+                # (relatively-large) shortfall indicates an invalid bound.
+                eps = 1e-6
+                assert gap_work >= -eps * max(1.0, lb_work), (
+                    f'Negative work gap on {fname} C={n_cranes} {sname}: '
+                    f'cost={result["total_cost"]:.1f} < LB={lb_work:.1f} — bound invalid'
+                )
+                if gap_makespan is not None:
+                    assert gap_makespan >= -eps * max(1.0, lb_makespan), (
+                        f'Negative makespan gap on {fname} C={n_cranes} {sname}: '
+                        f'makespan={makespan:.1f} < LB={lb_makespan:.1f} — bound invalid'
+                    )
 
                 results.append({
                     'instance': fname,
                     'n_cranes': n_cranes,
                     'strategy': sname,
                     'total_cost': result['total_cost'],
-                    'lb_mc': lb,
-                    'gap': round(gap, 2),
+                    'makespan': makespan,
+                    'lb_work': lb_work,
+                    'lb_makespan': lb_makespan,
+                    'gap_work': round(max(gap_work, 0.0), 2),
+                    'gap_makespan': round(max(gap_makespan, 0.0), 2) if gap_makespan is not None else None,
                     'n_steps': result['n_steps'],
                     'interference': result['n_interference'],
+                    'interference_wait': round(result.get('interference_wait', 0.0), 2),
+                    'a7_reassignments': result.get('a7_reassignments', 0),
+                    'a7_violations': result.get('a7_violations', 0),
                     'time_s': round(elapsed, 3),
                     'per_crane_cost': str(result['per_crane_cost']),
                 })
@@ -176,7 +211,7 @@ def run_experiment(args):
                     remaining = (n_total - n_done) / rate if rate > 0 else 0
                     print(
                         f'  [{n_done}/{n_total}] {fname} C={n_cranes} {sname} '
-                        f'gap={gap:.1f}% | {remaining:.0f}s remaining'
+                        f'gap_w={gap_work:.1f}% | {remaining:.0f}s remaining'
                     )
 
     total = time.time() - start_time
@@ -200,6 +235,7 @@ if __name__ == '__main__':
     df.to_csv(path, index=False)
     print(f'Saved: {path}')
 
-    summary = df.groupby(['n_cranes', 'strategy'])['gap'].agg(['mean', 'std', 'min', 'max'])
+    cols = ['gap_work'] + (['gap_makespan'] if df['gap_makespan'].notna().any() else [])
+    summary = df.groupby(['n_cranes', 'strategy'])[cols].agg(['mean', 'std', 'min', 'max'])
     print('\n=== Summary ===')
     print(summary.to_string())

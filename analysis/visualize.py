@@ -415,4 +415,9 @@ def generate_all(csv_path=None):
 
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: groups by a `gap` column that experiment.py no longer '
+        'writes (it now writes gap_work/gap_makespan). '
+        'Use `analysis.visualize_v2` instead — see README.md.'
+    )
     generate_all()

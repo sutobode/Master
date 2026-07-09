@@ -62,4 +62,11 @@ def run_baseline_on_all():
             print(f'  {method}: mean={m.mean():.2f}% std={m.std():.2f}% (n={len(m)})')
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: uses the pre-revision parse_instance_file()/compute_lb_mc() '
+        'API (silently swallowed by a broad try/except) and old _c2/_c3-suffixed '
+        'instance filenames, neither of which exist anymore — this script would '
+        'silently process zero instances. Use `analysis.run_mc_baselines_v2` '
+        'instead — see README.md.'
+    )
     run_baseline_on_all()

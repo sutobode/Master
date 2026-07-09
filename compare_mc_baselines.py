@@ -112,4 +112,12 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: this script targets the old data model (per-crane-count '
+        '_c2/_c3 instance files, tensor-valued compute_lb_mc, and an ad-hoc '
+        'nearest/shortest MultiCraneBaseline that is NOT the published '
+        'Lin2015/Kim2016/Leveling rules). It has not been updated for the '
+        'current API and will raise on the first parse_instance_file() call. '
+        'Use `python -m analysis.run_mc_baselines_v2` instead (see README.md).'
+    )
     main()

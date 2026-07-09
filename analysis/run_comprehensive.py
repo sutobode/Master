@@ -256,8 +256,14 @@ def generate_summary(single_df, multi_df):
     log(f'\nSaved: {OUT}/summary.json')
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: uses the pre-revision parse_instance_file()/compute_lb_mc() '
+        'API and old _c2/_c3-suffixed instance filenames, neither of which exist '
+        'anymore. Use `analysis.run_single_crane_v2` and '
+        '`analysis.run_mc_baselines_v2` instead — see README.md.'
+    )
     t_start = time.time()
-    
+
     single_df = run_single_crane_baselines()
     multi_df = run_multi_crane_baselines()
     generate_summary(single_df, multi_df)
