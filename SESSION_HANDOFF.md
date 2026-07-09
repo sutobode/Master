@@ -34,16 +34,18 @@
 
 ## 3. KEY RESULTS (FINAL)
 
-### Single-crane: 50 Lee instances (full benchmark)
+### Single-crane: 111 Lee instances (comprehensive, 888 runs)
 
 | Method | Mean Gap(%) | So với ZeroShot |
 |--------|-------------|-----------------|
-| **ZeroShot (ours)** 🏆 | **6.56%** | — |
-| Lin2015 (SOTA heuristic) | 22.42% | **+15.86pp** (3.4× worse) |
-| Leveling | 25.55% | +18.99pp |
-| Kim2016 | 41.08% | +34.52pp |
-| Durasevic2025 (GP) | 47.33% | +40.77pp |
-| Random | 119.71% | +113.15pp |
+| **ZeroShot (ours)** 🏆 | **6.03%** | — |
+| Original Model (Shin et al.) | 7.06% | +1.03pp |
+| Lin2015 (SOTA heuristic) | 22.42% | **+16.39pp** (3.7× worse) |
+| Leveling | 22.78% | +16.75pp |
+| Kim2016 | 44.32% | +38.29pp |
+| Durasevic2025 (GP) | 51.33% | +45.30pp |
+| NearestStack | 78.60% | +72.57pp |
+| LowestHeight | 74.74% | +68.71pp |
 
 ### Multi-crane: 140 M-CRP instances
 
