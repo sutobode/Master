@@ -35,7 +35,7 @@
 \address[inst]{University, Country}
 
 \begin{abstract}
-Container terminals operate multiple yard cranes per block, yet the Container Retrieval Problem (CRP) has been studied exclusively as a single-crane problem. This paper presents the first formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP). We investigate whether a Deep Reinforcement Learning (DRL) policy trained solely on single-crane instances transfers zero-shot to multi-crane environments via heuristic crane assignment strategies. On 140 M-CRP instances, ZoneSplit achieves gaps of 10.46\% (C=2) and 10.71\% (C=3) against the proposed M-CRP lower bound, reducing interference events by 99.5\% compared to non-spatial strategies. These gaps are approximately one-third of those achieved by the best heuristic extended to multi-crane (M-Lin2015: 31.73\% at C=2). On single-crane benchmarks (50 instances), the extracted policy achieves 6.56\% gap versus 22.42\% for Lin2015. Code and benchmarks are publicly released.
+Container terminals operate multiple yard cranes per block, yet the Container Retrieval Problem (CRP) has been studied exclusively as a single-crane problem. This paper presents the first formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP). We investigate whether a Deep Reinforcement Learning (DRL) policy trained solely on single-crane instances transfers zero-shot to multi-crane environments via heuristic crane assignment strategies. On 140 M-CRP instances, ZoneSplit achieves gaps of 10.46\% (C=2) and 10.71\% (C=3) against the proposed M-CRP lower bound, reducing interference events by 99.5\% compared to non-spatial strategies. These gaps are approximately one-third of those achieved by the best heuristic extended to multi-crane (M-Lin2015: 31.73\% at C=2). On single-crane benchmarks (111 instances, 888 runs), ZeroShot achieves 6.03\% gap versus 22.42\% for Lin2015 (3.7$\times$ worse) and 7.06\% for the original pretrained model. Code and benchmarks are publicly released.
 \end{abstract}
 
 \begin{keyword}
@@ -222,23 +222,28 @@ Primary metric: $\text{Gap}(\LB_{\text{MCRP}})\% = 100\times(\text{CTWT}-\LB_{\t
 \section{Results and Analysis}
 \label{sec:results}
 
-% Plan para 1: Single-crane results
-\subsection{Experiment 1: Single-Crane Verification}
-On the full 50-instance benchmark (Table~\ref{tab:single}), ZeroShot achieves a mean gap of 6.56\% (std 2.35\%), outperforming the best heuristic Lin2015 (22.42\%, std 7.81\%) by 15.86 percentage points. Heuristic performance degrades with yard scale (Lin2015: 5.55\% on 1-bay vs 37.75\% on 10-bay instances), while ZeroShot remains stable (3.26--12.42\%).
+% Plan para 1: Single-crane results (comprehensive across 111 Lee instances)
+\subsection{Experiment 1: Single-Crane Comparison}
+Table~\ref{tab:single} presents comprehensive single-crane results across 111 Lee benchmark instances (71 random + 40 upside-down), comparing 8 methods with 888 total runs. ZeroShot achieves the lowest overall mean gap of 6.03\%, marginally outperforming the Original Model (7.06\%)---the pretrained DRL policy from Shin et al.~\cite{shin2026}---by 1.03 percentage points. The average cost difference between ZeroShot and the Original Model is 1.02\% (max 3.38\%), confirming the fidelity of the policy extraction.
+
+ZeroShot substantially outperforms all heuristic baselines. The best heuristic, Lin2015~\cite{lin2015}, achieves 22.42\%---3.7 times worse than ZeroShot. Leveling (22.78\%), Kim2016 (44.32\%), and Durasevic2025 (51.33\%) exhibit progressively larger gaps, confirming that learned DRL policies capture more effective relocation strategies than any hand-crafted or evolved heuristic.
 
 \begin{table}[h!]
     \centering
-    \caption{Single-crane comparison on 50 Lee instances.}
+    \caption{Single-crane comparison across 111 Lee instances (888 runs). Gap(\%) against theoretical lower bound.}
     \label{tab:single}
     \begin{tabularx}{\textwidth}{lcccc}
         \toprule
         Method & Mean Gap(\%) & Std(\%) & Min(\%) & Max(\%) \\
         \midrule
-        \textbf{ZeroShot (ours)} & \textbf{6.56} & 2.35 & 3.26 & 12.42 \\
-        Lin2015~\cite{lin2015} & 22.42 & 7.81 & 5.55 & 37.75 \\
-        Leveling & 25.55 & 8.43 & 14.88 & 44.12 \\
-        Kim2016~\cite{kim2016} & 41.08 & 13.57 & 9.84 & 61.54 \\
-        Durasevic2025~\cite{durasevic2025} & 47.33 & 15.32 & 14.68 & 80.06 \\
+        \textbf{ZeroShot (ours)} & \textbf{6.03} & 2.73 & 1.39 & 12.76 \\
+        Original Model (Shin et al.~\cite{shin2026}) & 7.06 & 2.56 & 2.33 & 12.54 \\
+        Lin2015~\cite{lin2015} & 22.42 & 7.94 & 5.55 & 37.38 \\
+        Leveling & 22.78 & 8.30 & 9.58 & 44.08 \\
+        Kim2016~\cite{kim2016} & 44.32 & 15.89 & 9.52 & 72.12 \\
+        Durasevic2025~\cite{durasevic2025} & 51.33 & 19.42 & 11.60 & 83.07 \\
+        LowestHeight & 74.74 & 26.92 & 18.83 & 121.65 \\
+        NearestStack & 78.60 & 25.74 & 24.74 & 130.04 \\
         \bottomrule
     \end{tabularx}
 \end{table}
