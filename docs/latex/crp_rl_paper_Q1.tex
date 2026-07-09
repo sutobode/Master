@@ -25,6 +25,7 @@
 \newtheorem{corollary}{Corollary}[section]
 \newtheorem{assumption}{Assumption}[section]
 \newcommand{\LB}{\text{LB}}
+\newcommand{\R}{\mathbb{R}}
 
 \begin{document}
 
@@ -82,21 +83,22 @@ Table~\ref{tab:sota} summarizes single-crane CRP performance on the Lee benchmar
 
 \begin{table}[h!]
     \centering
-    \caption{Summary of single-crane CRP performance on the Lee benchmark (gap \% against lower bound). Lower is better.}
+    \caption{Summary of single-crane CRP performance on Lee benchmark (gap \% against lower bound). Lower is better.}
     \label{tab:sota}
     \begin{tabularx}{\textwidth}{lccc}
         \toprule
         Method & Type & Instances & Mean Gap(\%) \\
         \midrule
-        Lin et al.~\cite{lin2015} & Heuristic (SSI) & 50 & 22.42 \\
-        Kim et al.~\cite{kim2016} & Heuristic (classification) & 50 & 41.08 \\
-        Leveling~\cite{shin2026} & Heuristic (height balancing) & 50 & 25.55 \\
+        Lin et al.~\cite{lin2015} & Heuristic (SSI) & 111 & 22.42 \\
+        Kim et al.~\cite{kim2016} & Heuristic (classification) & 111 & 44.32 \\
+        Leveling~\cite{shin2026} & Heuristic (height balancing) & 111 & 22.78 \\
         Forster \& Bortfeldt~\cite{forster2012} & Tabu Search & 36 & $\sim$30--40* \\
         Cifuentes \& Riff~\cite{cifuentes2020} & GRASP & 36 & $\sim$46* \\
-        Durasevic et al.~\cite{durasevic2025} & Genetic Programming & 36 & $\sim$36--47 \\
+        Durasevic et al.~\cite{durasevic2025} & Genetic Programming & 111 & 51.33 \\
         Shin et al.~\cite{shin2026} & DRL (Transformer) & 36 & 7.8 \\
         \midrule
-        \textbf{ZeroShot (this work)} & Extracted DRL & 50 & \textbf{6.56} \\
+        \textbf{ZeroShot (this work)} & Extracted DRL & 111 & \textbf{6.03} \\
+        \textbf{Original Model~\cite{shin2026}} & Original DRL & 111 & 7.06 \\
         \bottomrule
     \end{tabularx}
 \end{table}
