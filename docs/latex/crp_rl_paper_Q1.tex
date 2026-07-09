@@ -126,9 +126,19 @@ where $\LB_{\text{interference}} = \max(0, \max_b(\text{reloc}_b) - \frac{\text{
 
 \subsection{Source DRL Model}
 
-We employ the publicly available pretrained policy of Shin et al.~\cite{shin2026}, which comprises a Transformer-based encoder-decoder architecture~\cite{vaswani2017}. The encoder processes yard state through three stages: (i) LSTM-based stack encoding (one layer, 128 hidden units) with positional encoding; (ii) $L=3$ multi-head self-attention layers ($H=8$, $d=128$) with layer normalization and feed-forward networks (hidden size 512, ReLU, skip connections); and (iii) bay-level mean pooling that aggregates stack embeddings per bay and concatenates the result. The decoder computes action logits via cross-attention with tanh clipping ($C=10$). Training used REINFORCE~\cite{williams1992} with POMO~\cite{kwon2020} ($M=16$ parallel rollouts), a normalized baseline, and Adam optimizer ($\text{lr}=3\times10^{-4}$). The model achieves a verified 7.8\% gap on the Lee benchmark~\cite{lee2010}.
+We adopt the publicly available pretrained policy of Shin et al.~\cite{shin2026}, denoted $\pi_\theta(a_t|s_t)$, which comprises a Transformer-based encoder-decoder architecture~\cite{vaswani2017} trained via REINFORCE~\cite{williams1992} with POMO~\cite{kwon2020} parallel rollouts. This section describes its architecture, as the zero-shot extraction (Section~\ref{sec:extraction}) directly leverages its internal representations.
+
+\paragraph{Encoder.} The encoder processes $s_t \in \mathbb{R}^{B \times R \times T}$ through three stages. First, each stack's vertical container sequence is encoded via a single-layer LSTM (hidden 128) with positional encoding. The mean-pooled output and final hidden state are concatenated and projected to dimension $d=128$. Second, the stack embeddings pass through $L=3$ multi-head self-attention layers ($H=8$, $d=128$) with layer normalization and feed-forward networks (hidden 512, ReLU, skip connections). Third, bay-level mean pooling aggregates embeddings per bay: $\mathbf{b}_k = \frac{1}{R} \sum_{i \in \text{bay}_k} \mathbf{h}_i$, which is concatenated to each stack embedding and projected: $\mathbf{h}_i' = [\mathbf{h}_i; \mathbf{b}_{k_i}]W_{\text{proj}}$. The global graph embedding is $\mathbf{g} = \frac{1}{S} \sum_i \mathbf{h}_i'$. Ten hand-crafted features per stack augment the learned embeddings. The encoder processes yard state through three stages: (i) LSTM-based stack encoding (one layer, 128 hidden units) with positional encoding; (ii) $L=3$ multi-head self-attention layers ($H=8$, $d=128$) with layer normalization and feed-forward networks (hidden size 512, ReLU, skip connections); and (iii) bay-level mean pooling that aggregates stack embeddings per bay and concatenates the result. \paragraph{Decoder.} Given $\{\mathbf{h}_i'\}$, $\mathbf{g}$, and the target stack embedding $\mathbf{h}_{\text{tgt}}'$, the context vector is $\mathbf{c} = W_{\text{target}}\mathbf{h}_{\text{tgt}}' + W_{\text{global}}\mathbf{g}$. Multi-head attention produces $\text{head} = \text{MHA}(\mathbf{c}, \{W_{K1}\mathbf{h}_i'\}, \{W_V\mathbf{h}_i'\})$, and the query projection $\mathbf{q} = W_Q(\text{head})$ is combined with node keys $W_{K2}\mathbf{h}_i'$ via scaled dot-product with tanh clipping ($C=10$):
+\begin{equation}
+    u_i = C \cdot \tanh\!\Big( \frac{\mathbf{q}^\top W_{K2}\mathbf{h}_i'}{\sqrt{d}} \Big), \quad
+    \pi_\theta(a_t = i | s_t) = \frac{\exp(u_i)}{\sum_{j \in \mathcal{V}} \exp(u_j)}
+\end{equation}
+where $\mathcal{V}$ is the set of feasible destination stacks.
+
+\paragraph{Training.} REINFORCE~\cite{williams1992} with POMO~\cite{kwon2020} ($M=16$), a normalized baseline $A_m = (R_m - \mu(R))/(\sigma(R)+\epsilon)$, Adam ($\text{lr}=3\times10^{-4}$), gradient clipping (max norm 1.0), 1,000 epochs. The model achieves a verified 7.8\% gap on the Lee benchmark~\cite{lee2010}.
 
 \subsection{Policy Extraction and Decoupled Inference}
+\label{sec:extraction}
 
 We extract the frozen encoder $\mathcal{E}$ and decoder scorer weights $\{W_{\text{target}},W_{\text{global}},W_{K1},W_V,W_Q,W_{K2},\text{MHA}\}$ from the pretrained model $\theta^*$, forming a \texttt{ZeroShotPolicy} that exposes per-step action selection. At each decision step:
 \begin{align}
@@ -160,6 +170,12 @@ The strategy module then assigns a crane $c$ to execute destination $d$ (Algorit
 \subsection{Crane Assignment Strategies}
 
 Table~\ref{tab:strategies} defines our four strategies. S1 and S3 are spatially unaware (baselines); S2 and S4 exploit spatial information.
+
+\paragraph{S2: ZoneSplit.} The yard is divided into $C$ contiguous bay zones. Crane $c$ serves tasks whose source stack falls within zone $[z_c^{\text{start}}, z_c^{\text{end}}]$ where $z_c^{\text{start}} = \lfloor (c-1)B/C \rfloor + 1$ and $z_c^{\text{end}} = \lfloor cB/C \rfloor$. This enforces constraints A6 and A7 by construction.
+
+\subsection{Multi-Crane Environment (MCEnv)}
+
+MCEnv wraps the single-crane environment with $C$ independent position trackers. Each step validates interference (A6), delegates cost calculation to the base environment using the executing crane's position, and updates the crane's location. The total per-step cost is $\approx$5 ms (encoder + scorer) plus $O(1)$ to $O(C^2)$ for strategy assignment, suitable for real-time control.
 
 \begin{table}[h!]
     \centering
