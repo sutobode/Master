@@ -18,15 +18,12 @@
 \usepackage{url}
 
 \usetikzlibrary{arrows,positioning,shapes}
-
 \journal{Transportation Research Part C: Emerging Technologies}
 
 \newtheorem{definition}{Definition}[section]
 \newtheorem{theorem}{Theorem}[section]
-\newtheorem{lemma}{Lemma}[section]
 \newtheorem{corollary}{Corollary}[section]
 \newtheorem{assumption}{Assumption}[section]
-
 \newcommand{\LB}{\text{LB}}
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\R}{\mathbb{R}}
@@ -35,758 +32,344 @@
 \begin{document}
 
 \begin{frontmatter}
+\title{Zero-shot Transfer of a Single-Crane DRL Policy for Multi-Crane Container Retrieval in Automated Terminals}
 
-\title{Zero-shot Transfer of Single-Crane Deep Reinforcement Learning Policies for Multi-Crane Container Retrieval}
-
-\author[inst]{Anonymous Author(s)}
+\author[inst]{Anonymous}
 \ead{corresponding@author.email}
-\address[inst]{Department, University, City, Country}
+\address[inst]{University, Country}
 
 \begin{abstract}
-Real-world automated container terminals operate multiple yard cranes per block to meet throughput demands, yet all existing research on the Container Retrieval Problem (CRP) exclusively assumes single-crane operation. This paper presents the \emph{first} formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP). We investigate whether a state-of-the-art Deep Reinforcement Learning (DRL) policy---trained solely on single-crane instances---can be transferred zero-shot to multi-crane environments through heuristic crane assignment strategies. We propose four strategies spanning the systematic design space from $O(1)$ to $O(C^2)$: RoundRobin (S1), ZoneSplit (S2), LoadBalance (S3), and GreedyOptimal (S4). Extensive experiments on 140 M-CRP benchmark instances (1,120 runs across 2--3 cranes) demonstrate that zero-shot transfer is viable. ZoneSplit achieves average gaps of 10.46\% (C=2) and 10.71\% (C=3) against the proposed M-CRP lower bound (Theorem~3), while reducing crane interference events by over 99.5\% compared to non-spatial strategies. ZoneSplit significantly outperforms RoundRobin and LoadBalance (Wilcoxon $p<0.001$), matches the more computationally expensive GreedyOptimal ($p>0.1$), and incurs only $O(B)$ complexity. On the full 50-instance Lee benchmark, the zero-shot extraction pipeline achieves a mean gap of 6.56\%, outperforming the best heuristic Lin2015 (22.42\%) by 15.86 percentage points and all other baselines by margins of 19--113 percentage points. Our results establish that single-crane DRL policies encode transferable spatial knowledge, enabling practical multi-crane deployment without retraining. We publicly release all code, benchmark instances, and experimental results.
+Real-world container terminals deploy multiple yard cranes per block to meet throughput demands, yet the Container Retrieval Problem (CRP)--a core operational optimization challenge--has been studied exclusively as a single-crane problem for over fifteen years. This paper bridges this gap by presenting the \emph{first} formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP). We investigate whether a state-of-the-art Deep Reinforcement Learning (DRL) policy, trained solely on single-crane instances, can be transferred zero-shot to multi-crane environments via heuristic crane assignment strategies. We propose four strategies spanning the design space: RoundRobin (S1), ZoneSplit (S2), LoadBalance (S3), and GreedyOptimal (S4). On 140 M-CRP instances (1,120 runs, 2--3 cranes), ZoneSplit achieves gaps of 10.46\% (C=2) and 10.71\% (C=3) against the proposed M-CRP lower bound, while reducing interference events by 99.5\% compared to non-spatial strategies. These gaps are approximately one-third of those achieved by the best heuristic extended to multi-crane settings (M-Lin2015: 31.73\% at C=2). On single-crane benchmarks (50 instances), the extracted policy achieves 6.56\% gap, outperforming the best heuristic Lin2015 (22.42\%) by 15.86 percentage points. Our results establish that single-crane DRL policies encode transferable spatial knowledge, enabling effective multi-crane deployment without retraining. Code, benchmarks, and results are publicly released.
 \end{abstract}
 
 \begin{keyword}
-Container Retrieval Problem \sep Multi-Crane Operations \sep Deep Reinforcement Learning \sep Zero-shot Transfer \sep Crane Assignment \sep Container Terminal Optimization
+Container Retrieval Problem \sep Multi-Crane Operations \sep Deep Reinforcement Learning \sep Zero-shot Transfer \sep Crane Assignment
 \end{keyword}
-
 \end{frontmatter}
 
 \section{Introduction}
-\label{sec:introduction}
+\label{sec:intro}
 
-\subsection{Practical Motivation}
-\label{sec:motivation}
+\subsection{The Container Retrieval Problem in Practice}
 
-The Container Retrieval Problem (CRP) is a fundamental optimization challenge arising in automated container terminal operations. In a typical container yard, thousands of shipping containers are stacked in rectangular blocks of dimensions $B$ bays $\times$ $R$ rows $\times$ $T$ tiers, with each stack reaching heights of up to six to eight containers. Retrieving a specific container requires a yard crane to access the designated bay and row, lift the target container, and transport it to an external truck or automated guided vehicle. However, the target container is often buried beneath other containers that must first be relocated---a process known as \emph{reshuffling} or \emph{relocation}---to alternative stacks within the same block. The objective of CRP is to determine the sequence of relocations and retrievals that minimizes the total crane working time, comprising travel, handling, and penalty components~\cite{shin2026}.
+Modern automated container terminals are massive logistics hubs where thousands of shipping containers are stored in dense yard blocks. Retrieving a specific container from a stack often requires relocating blocking containers to other stacks--a process known as \emph{reshuffling}. The Container Retrieval Problem (CRP) seeks to minimize the total crane working time (travel, handling, and penalty) required to retrieve all containers in a prescribed priority order~\cite{shin2026}.
 
-In real-world terminals, throughput requirements necessitate the deployment of \emph{multiple} yard cranes operating simultaneously within a single block. Major ports such as Rotterdam, Singapore, and Busan operate two to three yard cranes per block to achieve the required container handling rates~\cite{stahlbock2008}. Multi-crane operation introduces fundamental coordination challenges: cranes share a common track, cannot occupy the same bay simultaneously (collision avoidance), and must preserve their spatial ordering along the bay axis (non-crossing constraint). These physical constraints create a coupled decision problem where each crane's actions influence the feasible actions of others, dramatically increasing the complexity of the retrieval planning task.
+The CRP literature has evolved over three methodological generations. \textbf{Heuristic methods}~\cite{lin2015,kim2016} use hand-crafted rules (e.g., Stack Selection Index, critical-stack identification). \textbf{Metaheuristic methods}~\cite{forster2012,cifuentes2020,durasevic2025} apply search procedures (Tabu Search, GRASP, Genetic Programming). Most recently, \textbf{Deep Reinforcement Learning}~\cite{shin2026} achieved state-of-the-art results with a Transformer-based policy, attaining a 7.8\% gap against the theoretical lower bound on the standard 36-instance Lee benchmark.
 
-Despite this operational reality, the academic literature has studied CRP \emph{exclusively} as a single-crane problem for over fifteen years. This disconnect between industrial practice and academic research creates an urgent question: can the substantial body of knowledge developed for single-crane CRP---particularly the recent breakthroughs in Deep Reinforcement Learning (DRL)~\cite{shin2026}---be extended to multi-crane settings without starting from scratch?
+\subsection{The Research Gap: Multi-Crane Operation}
 
-\subsection{State of the Art in CRP}
-\label{sec:state_of_art}
-
-The CRP literature has evolved through three generations: heuristic methods using hand-crafted rules~\cite{lin2015,kim2016}, metaheuristic and search methods~\cite{forster2012,cifuentes2020,durasevic2025}, and most recently Deep Reinforcement Learning (DRL)~\cite{shin2026}. Shin et al.~\cite{shin2026} proposed a Transformer-based policy network achieving approximately 7.8\% gap against the theoretical lower bound on the Lee benchmark~\cite{lee2010}---the first DRL method to outperform all existing heuristics. Critically, their model is publicly available, making it an ideal baseline for transfer studies. A detailed literature review is provided in Section~\ref{sec:related}.
-
-\subsection{Research Gap and Contributions}
-\label{sec:gap}
-
-All existing CRP research---spanning heuristic, metaheuristic, evolutionary, and DRL methods---assumes \emph{single-crane operation}. The multi-crane variant (M-CRP) presents three fundamental and unresolved challenges:
+Despite this progress, \emph{every} existing CRP study assumes single-crane operation. Yet major terminals---Rotterdam, Singapore, Busan---operate two to three yard cranes simultaneously within each block to achieve required throughput~\cite{stahlbock2008}. Multi-crane operation introduces coordination constraints absent from the single-crane setting: cranes share a common track, cannot occupy the same bay simultaneously (collision avoidance), and must preserve their spatial ordering along the bay axis. This creates three fundamental and unresolved challenges:
 
 \begin{enumerate}
-    \item \textbf{Coordination:} Cranes must spatially deconflict while maximizing productivity, requiring formal constraints (non-overlap and non-crossing) that extend the CRP state and action spaces.
-    \item \textbf{Evaluation:} Without formal lower bounds or standardized benchmark datasets, solution quality for multi-crane configurations cannot be objectively assessed or compared.
-    \item \textbf{Transferability:} It is unknown whether single-crane DRL policies---trained to select relocation destinations without considering crane interference---can be reused in multi-crane settings through heuristic coordination wrappers, or whether entirely new training paradigms (e.g., multi-agent RL) are required.
+    \item \textbf{Formalization:} No definition exists for the multi-crane variant (M-CRP), its state/action spaces, or its physical constraints.
+    \item \textbf{Evaluation:} Without lower bounds or benchmarks, multi-crane solution quality cannot be objectively assessed.
+    \item \textbf{Transferability:} It is unknown whether single-crane DRL policies--which learn relocation strategies in isolation--can be reused in multi-crane settings, or whether entirely new multi-agent paradigms are required.
 \end{enumerate}
 
-Shin et al.~\cite{shin2026} explicitly identified multi-crane operation as critical future work, stating that \textquote{A key future extension involves operating multiple cranes within a yard block.} This paper is the first to address this research gap systematically.
-
-The central research question is: \emph{Can a single-crane DRL policy be transferred zero-shot to multi-crane environments via heuristic crane assignment strategies, and if so, what strategy achieves the best trade-off between solution quality, coordination overhead, and computational complexity?}
-
-We make five contributions:
+Shin et al.~\cite{shin2026} identified multi-crane operation as critical future work. This paper systematically addresses this gap through five contributions:
 
 \begin{enumerate}
-    \item[{[C1]}] \textbf{Formal M-CRP definition} with extended state/action spaces, physical interference constraints (A6, A7), and NP-hardness proof.
-    \item[{[C2]}] \textbf{M-CRP Lower Bound (Theorem~3)} extending the single-crane bound of~\cite{shin2026}, decomposing into retrieval, relocation, and interference components with formal backward compatibility at $C=1$.
-    \item[{[C3]}] \textbf{Four crane assignment strategies} enabling zero-shot single-to-multi-crane transfer via a decoupled inference architecture.
-    \item[{[C4]}] \textbf{Comprehensive empirical evaluation} spanning 140 M-CRP instances, 1,120 simulation runs, statistical significance testing (Wilcoxon signed-rank), and failure mode analysis.
-    \item[{[C5]}] \textbf{Public benchmark dataset and code} released under open licenses to facilitate reproducible research.
+    \item[{[C1]}] \textbf{Formal M-CRP definition} with extended state/action spaces, interference constraints (A6, A7), and NP-hardness proof.
+    \item[{[C2]}] \textbf{M-CRP lower bound (Theorem~3)} decomposing into retrieval, relocation, and interference terms.
+    \item[{[C3]}] \textbf{Four crane assignment strategies} enabling zero-shot single-to-multi-crane transfer.
+    \item[{[C4]}] \textbf{Empirical evaluation} spanning 140 M-CRP instances, 1,120 simulation runs, and statistical significance testing.
+    \item[{[C5]}] \textbf{Public benchmark dataset} (140 instances, CC BY 4.0).
 \end{enumerate}
 
 \section{Related Work}
 \label{sec:related}
 
-\subsection{Single-Crane CRP Solution Methods}
-\label{sec:related_crp}
+\subsection{Single-Crane CRP: What Has Been Achieved}
 
-The CRP literature is extensive, spanning over fifteen years of research. Lee and Lee~\cite{lee2010} provided one of the earliest formal treatments, proposing a heuristic based on the \emph{corner stacking} principle that prioritizes relocations to stacks near the yard entrance to minimize future travel distances. This work also established a benchmark of 36 instances that has become the standard evaluation corpus for CRP research.
+Table~\ref{tab:sota} summarizes the state of the art in CRP, evaluated on the standard Lee~\cite{lee2010} benchmark. The most significant finding is the performance gap between heuristics and DRL: when evaluated on the \emph{full} 50-instance benchmark (covering bays 1--10, tiers 6--8), Lin2015~\cite{lin2015} achieves 22.42\% gap, Kim2016~\cite{kim2016} achieves 41.08\%, and the DRL policy of Shin et al.~\cite{shin2026} achieves approximately 7.8\%. This gap motivated our transfer study: if single-crane DRL policies encode fundamentally better relocation knowledge than heuristics, can that knowledge transfer to multi-crane settings?
 
-Lin et al.~\cite{lin2015} significantly advanced the state of the art with the Stack Selection Index (SSI) method. SSI computes for each candidate destination stack $i$ a score:
-\begin{equation}
-    \text{SSI}_i = w_1 \cdot f_{\text{due}}(i) + w_2 \cdot f_{\text{height}}(i) + w_3 \cdot f_{\text{bay}}(i) + w_4 \cdot f_{\text{row}}(i)
-\end{equation}
-where $f_{\text{due}}$ captures the minimum retrieval priority in the stack, $f_{\text{height}}$ penalizes tall stacks, and $f_{\text{bay}}, f_{\text{row}}$ encode travel distance costs. Kim et al.~\cite{kim2016} proposed an alternative approach that first classifies stacks into categories (ideal, critical, blocked) and then applies category-specific relocation rules. The Leveling heuristic~\cite{shin2026} adopts a simpler strategy of always choosing the shortest stack within the same bay, implicitly balancing stack heights.
+\begin{table}[h!]
+    \centering
+    \caption{Summary of single-crane CRP performance on the Lee benchmark. Values are gap (\%) against the theoretical lower bound. Lower is better.}
+    \label{tab:sota}
+    \begin{tabularx}{\textwidth}{lccc}
+        \toprule
+        Method & Type & Benchmark & Mean Gap(\%) \\
+        \midrule
+        Lin et al.~\cite{lin2015} & Heuristic (SSI) & 50 instances & 22.42 \\
+        Kim et al.~\cite{kim2016} & Heuristic (classification) & 50 instances & 41.08 \\
+        Leveling~\cite{shin2026} & Heuristic (height balancing) & 50 instances & 25.55 \\
+        Forster \& Bortfeldt~\cite{forster2012} & Tabu Search & 36 instances & ~30--40* \\
+        Cifuentes \& Riff~\cite{cifuentes2020} & GRASP & 36 instances & ~46* \\
+        Durasevic et al.~\cite{durasevic2025} & Genetic Programming & 36 instances & ~36--47 \\
+        Shin et al.~\cite{shin2026} & \textbf{DRL (Transformer)} & 36 instances & \textbf{7.8} \\
+        \midrule
+        \textbf{ZeroShot (this work)} & \textbf{Extracted DRL} & \textbf{50 instances} & \textbf{6.56} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+*Numbers from~\cite{shin2026} Table 1; code not publicly available.
 
-Metaheuristic approaches include the Tabu Search of Forster and Bortfeldt~\cite{forster2012}, which explores the space of complete relocation sequences through neighborhood operators, and the GRASP of Cifuentes and Riff~\cite{cifuentes2020}, which combines randomized constructive heuristics with local search. Durasevic et al.~\cite{durasevic2025} applied Genetic Programming to evolve numerical relocation rules, demonstrating that evolved rules can outperform human-designed heuristics on certain instance types.
+\subsection{Multi-Crane Operations and Zero-Shot Transfer}
 
-The DRL approach of Shin et al.~\cite{shin2026} represents the current state of the art. Their Transformer-based policy achieves a mean gap of 7.8\% against the single-crane lower bound across the full Lee benchmark, outperforming all prior methods. The policy architecture combines LSTM-based stack encoding with multi-head self-attention and a cross-attention decoder, trained via REINFORCE with POMO parallel rollouts.
+Multi-crane coordination has been studied in related domains: quay crane scheduling~\cite{legato2001,sammarra2007} and yard crane deployment~\cite{zhang2002}. However, no prior work addresses the retrieval sequencing problem within a single block that is central to CRP.
 
-\subsection{Multi-Crane Operations in Container Terminals}
-\label{sec:related_mc}
-
-While no prior work has studied multi-crane CRP, related multi-crane problems have been addressed in the container terminal literature. For quay crane scheduling---where multiple ship-to-shore cranes load and discharge vessels---Legato and Mazza~\cite{legato2001} proposed a heuristic decomposition approach, and Sammarra et al.~\cite{sammarra2007} developed a genetic algorithm with crane interference avoidance. For yard crane deployment, Zhang et al.~\cite{zhang2002} studied dynamic crane allocation across multiple storage blocks to minimize total travel time, while Stahlbock and Vo\ss~\cite{stahlbock2008} provided a comprehensive survey of operations research applications at container terminals.
-
-However, these works focus on \emph{deployment} and \emph{scheduling} of cranes across blocks, not the \emph{retrieval sequencing} problem within a single block that is central to CRP. The key distinction is that M-CRP must determine not just \emph{which} crane serves \emph{which} retrieval request, but also the detailed sequence of relocations required to access buried containers---a combinatorial decision problem of significantly higher complexity.
-
-\subsection{Zero-shot Transfer in Combinatorial Optimization}
-\label{sec:related_zs}
-
-Zero-shot transfer has emerged as an important paradigm in learning-based combinatorial optimization. Kool et al.~\cite{kool2019} demonstrated that DRL policies for routing problems trained on small instances transfer effectively to larger instances at test time. Kwon et al.~\cite{kwon2020} showed that the POMO framework produces policies with strong zero-shot generalization across instance sizes for multiple combinatorial optimization problems. In the CRP domain, Shin et al.~\cite{shin2026} demonstrated that their model generalizes across different yard configurations (varying numbers of bays, rows, and tiers) without retraining.
-
-Our work extends the concept of zero-shot transfer in a novel direction: \emph{cross-environment} transfer. Rather than transferring across instance sizes or configurations within the same problem, we transfer from a single-crane environment to a multi-crane environment, requiring the policy to operate under fundamentally different dynamics (shared workspace, interference constraints, multiple agents). This type of transfer is qualitatively different from size generalization and has not been previously explored for CRP or related container terminal problems.
+Zero-shot transfer in combinatorial optimization has been demonstrated across problem sizes~\cite{kool2019, kwon2020}, but \emph{cross-environment} transfer--from single-agent to multi-agent settings--remains unexplored. Our work is the first to investigate this type of transfer for container terminal operations.
 
 \section{Problem Formulation}
 \label{sec:problem}
 
-\subsection{Single-Crane CRP (Base Problem)}
-\label{sec:base_crp}
-
-Following~\cite{shin2026}, a single-crane CRP instance is specified by:
-
-\begin{itemize}
-    \item Yard dimensions: $B$ bays, $R$ rows, $T$ tiers, giving $S = B \times R$ stacks.
-    \item $N$ containers, each with a unique retrieval priority $p \in \{1, \dots, N\}$, where $p=1$ denotes the highest priority (must be retrieved first).
-    \item Crane operating cost parameters: access time $t_{\text{acc}} = 40$ (entering/exiting a bay), bay travel time $t_{\text{bay}} = 3.5$ per bay, row travel time $t_{\text{row}} = 1.2$ per row, and handling penalty $t_{\text{pd}} = 30$ per relocation or retrieval.
-\end{itemize}
-
-The state at time $t$ is the yard configuration matrix $\mathbf{S}_t \in \mathbb{R}^{B \times R \times T}$, where positive entries specify container priorities and zero entries denote empty slots. The target container---the highest-priority container not yet retrieved---occupies a position determined by the minimum non-zero entry.
-
-At each step, the crane must either: (a) retrieve the target container if it is accessible (i.e., atop its stack and no blocking containers above it), incurring a retrieval cost; or (b) relocate the blocking container atop the target stack to a feasible destination stack (one with remaining capacity), incurring a relocation cost. The total working time objective is:
-
+\subsection{Single-Crane CRP}
+Following~\cite{shin2026}, a CRP instance is defined by yard dimensions $(B,R,T)$ and $N$ containers with priorities $\{1,\dots,N\}$. The objective is to minimize total crane working time:
 \begin{equation}
-    J = \sum_{t=1}^{\tau} C(a_t)
-    \label{eq:crp_obj}
+    J = \sum_{t} \big( \text{travel}(a_t) + \text{handling} + \text{penalty} \big)
 \end{equation}
+with parameters $t_{\text{acc}}=40$, $t_{\text{bay}}=3.5$, $t_{\text{row}}=1.2$, $t_{\text{pd}}=30$.
 
-where $a_t$ is the action (choice of destination stack for relocation, or retrieval), and $C(a_t)$ is the cost comprising travel, handling, and penalty components.
-
-\subsection{Multi-Crane CRP (M-CRP)}
-\label{sec:mcrp}
-
-We now present the first formal definition of M-CRP. The following assumptions extend those of~\cite{shin2026}:
-
-\begin{assumption}[A1: Single retrieval order]
-All $N$ containers have a fixed retrieval priority order $\sigma = (\sigma_1, \dots, \sigma_N)$ known in advance.
-\end{assumption}
-
-\begin{assumption}[A2: Single-block operation]
-All $C$ cranes operate within the same yard block of dimensions $B \times R \times T$.
-\end{assumption}
-
-\begin{assumption}[A3: Crane homogeneity]
-All cranes have identical operating characteristics: same speed, same handling time, same cost parameters.
-\end{assumption}
-
-\begin{assumption}[A4: Deterministic operation]
-No stochastic events (breakdowns, delayed truck arrivals) are considered.
-\end{assumption}
-
-\begin{assumption}[A5: Exclusive yard access]
-Only cranes operate within the block; no external vehicles interfere.
-\end{assumption}
-
-\begin{assumption}[A6: Spatial non-overlap]
-No two cranes may occupy the same bay simultaneously:
-\begin{equation}
-    |\text{bay}_{c}(t) - \text{bay}_{c'}(t)| \geq 1, \quad \forall c \neq c',\; \forall t
-    \label{eq:a6}
-\end{equation}
-\end{assumption}
-
-\begin{assumption}[A7: Non-crossing]
-The spatial ordering of cranes along the bay axis must be preserved over time:
-\begin{equation}
-    \text{bay}_c(t) < \text{bay}_{c'}(t) \implies \text{bay}_c(t') < \text{bay}_{c'}(t'), \quad \forall t' > t
-    \label{eq:a7}
-\end{equation}
-\end{assumption}
-
+\subsection{M-CRP: Formal Definition}
 \begin{definition}[M-CRP]
-Given a yard $B \times R \times T$ with $C \geq 1$ homogeneous cranes and $N$ containers with retrieval order $\sigma$, find a sequence of actions $\{(a_t, c_t)\}_{t=1}^{\tau}$ where $a_t$ is a destination stack and $c_t \in \{1, \dots, C\}$ is a crane identifier, minimizing the total working time:
+Given yard $B \times R \times T$, $C \geq 1$ cranes, and $N$ containers with retrieval order $\sigma$, find a sequence $\{(a_t,c_t)\}_{t=1}^\tau$ minimizing:
 \begin{equation}
     \min \sum_{c=1}^C \sum_{t=1}^{\tau_c} \big( \text{travel}_c(a_t) + \text{handling} \big)
-    \label{eq:mcrp_obj}
 \end{equation}
-subject to assumptions A1--A7.
+subject to spatial non-overlap (A6): $|\text{bay}_c(t)-\text{bay}_{c'}(t)| \geq 1,\; \forall c \neq c'$, and non-crossing (A7): $\text{bay}_c(t) < \text{bay}_{c'}(t) \Rightarrow \text{bay}_c(t') < \text{bay}_{c'}(t'),\; \forall t' > t$.
 \end{definition}
 
-The state space expands from $(B, R, T)$ for the yard configuration to $(B, R, T) \times \mathbb{N}^C$ for the yard plus crane positions. The action space expands from a single stack index to a tuple $(\text{stack}, \text{crane})$.
-
-\begin{theorem}[NP-hardness of M-CRP]
-\label{thm:nphard}
-M-CRP with $C \geq 1$ is NP-hard.
+\begin{theorem}[NP-hardness]
+M-CRP with $C \geq 1$ is NP-hard (reduction from single-crane CRP~\cite{shin2026}).
 \end{theorem}
-
-\begin{proof}
-M-CRP with $C = 1$ reduces to the single-crane CRP, proven NP-hard by~\cite{shin2026} through a polynomial-time reduction from the Blocks Relocation Problem~\cite{caserta2012}. For $C > 1$, M-CRP subsumes the single-crane CRP as a special case (any single-crane instance can be embedded as an M-CRP instance with $C = 1$). Therefore M-CRP is NP-hard for all $C \geq 1$.
-\end{proof}
 
 \subsection{M-CRP Lower Bound}
-\label{sec:lb}
-
-We now derive the first lower bound for M-CRP, extending Theorem~2 of~\cite{shin2026}.
-
-\begin{theorem}[M-CRP Lower Bound -- Theorem 3]
-\label{thm:lb_mc}
-For any M-CRP instance with yard $B \times R \times T$, $C$ cranes, and $N$ containers, the total working time is bounded below by:
+\begin{theorem}[Theorem 3]
+For any M-CRP instance with $C$ cranes:
 \begin{equation}
     \LB_{\text{MCRP}} = \LB_{\text{retrieval}} + \frac{\LB_{\text{relocation}}}{C} + \LB_{\text{interference}}
-    \label{eq:lb_mc}
 \end{equation}
-where:
-\begin{align}
-    \LB_{\text{retrieval}} &= \LB_{\text{Shin}} - \LB_{\text{relocation}} \label{eq:lb_retrieval} \\
-    \LB_{\text{relocation}} &= n_{\text{mand}} \times (2 \cdot t_{\text{row}} + t_{\text{pd}}) \label{eq:lb_reloc} \\
-    \LB_{\text{interference}} &= \max\!\Big(0,\; \max_{b \in \{1,\dots,B\}} (\text{reloc}_b) - \frac{\text{total\_relocs}}{C}\Big) \times (t_{\text{acc}} + t_{\text{bay}}) \label{eq:lb_intf}
-\end{align}
-Here $\LB_{\text{Shin}}$ is the single-crane lower bound (Theorem~2 of~\cite{shin2026}), $n_{\text{mand}}$ is the number of containers that have a higher-priority container below them (mandatory relocations), $\text{reloc}_b$ is the number of mandatory relocations in bay $b$, and $\text{total\_relocs} = \sum_b \text{reloc}_b$.
+where $\LB_{\text{interference}} = \max(0, \max_b(\text{reloc}_b) - \frac{\text{total\_relocs}}{C}) \times (t_{\text{acc}}+t_{\text{bay}})$. At $C=1$, $\LB_{\text{MCRP}} = \LB_{\text{Shin}}$ (backward compatible).
 \end{theorem}
 
-\begin{proof}[Sketch]
-The bound decomposes M-CRP cost into three irreducible components. $\LB_{\text{retrieval}}$ captures the minimum travel and handling cost for the retrieval sequence assuming perfect yard knowledge and ignoring relocation overhead. $\LB_{\text{relocation}} / C$ captures the minimum cost for mandatory relocations, divided equally among $C$ cranes under ideal load balance. $\LB_{\text{interference}}$ captures the additional cost incurred when relocation demand is concentrated in a single bay, creating a bottleneck that prevents full utilization of the $C$ cranes.
-\end{proof}
-
-\begin{corollary}[Backward Compatibility]
-\label{cor:backward}
-When $C = 1$, $\LB_{\text{MCRP}} = \LB_{\text{Shin}}$.
-\end{corollary}
-
-\begin{proof}
-When $C = 1$, $\text{reloc}_b = \text{total\_relocs}$ for the bay containing all relocations, and $\max_b(\text{reloc}_b) = \text{total\_relocs}$. Thus $\LB_{\text{interference}} = \max(0, \text{total\_relocs} - \text{total\_relocs} / 1) \times (t_{\text{acc}} + t_{\text{bay}}) = 0$. Substituting into~\eqref{eq:lb_mc}: $\LB_{\text{MCRP}} = \LB_{\text{retrieval}} + \LB_{\text{relocation}} = \LB_{\text{Shin}}$.
-\end{proof}
-
-\section{Methodology}
+\section{Zero-Shot Transfer Framework}
 \label{sec:method}
 
-\subsection{Base DRL Model}
-\label{sec:base_drl}
+\subsection{Base DRL Policy}
+We use the publicly available pretrained policy of Shin et al.~\cite{shin2026}. The policy network $\pi_\theta(a_t|s_t)$ employs a Transformer-based encoder-decoder architecture~\cite{vaswani2017}.
 
-Our work builds directly on the publicly available pretrained DRL model of Shin et al.~\cite{shin2026}. We summarize the architecture here for completeness, as it is essential for understanding the zero-shot extraction procedure.
+\textbf{Encoder.} The yard state $s_t \in \mathbb{R}^{B \times R \times T}$ is processed through three stages. First, each stack's vertical container sequence (priority values from bottom to top) is encoded via a single-layer LSTM (hidden size 128) with positional encoding. The LSTM's mean-pooled output and final hidden state are concatenated and projected to dimension $d=128$. Second, the stack embeddings pass through $L=3$ layers of multi-head self-attention with $H=8$ heads, each followed by layer normalization and a feed-forward network (hidden size 512, ReLU activation, skip connections). Third, stack embeddings are aggregated per bay via mean pooling: $\mathbf{b}_k = \frac{1}{R} \sum_{i \in \text{bay}_k} \mathbf{h}_i$. The bay embedding is concatenated to each stack embedding and projected: $\mathbf{h}_i' = [\mathbf{h}_i; \mathbf{b}_{k_i}]W_{\text{proj}}$. The global graph embedding is $\mathbf{g} = \frac{1}{S} \sum_i \mathbf{h}_i'$. Additionally, ten hand-crafted features per stack (height, remaining tiers, row/bay positions, travel distances, fill ratio) augment the learned embeddings.
 
-The policy network $\pi_\theta(a_t | s_t)$ employs a Transformer-based encoder-decoder architecture~\cite{vaswani2017}:
-
-\textbf{Encoder.} The encoder processes the yard state through three stages:
-\begin{enumerate}
-    \item \textbf{Stack encoding (LSTM):} Each stack's vertical content (container priorities from bottom to top) is encoded through a single-layer LSTM with hidden size 128. Positional encoding~\cite{vaswani2017} is added to provide height information. The LSTM's mean-pooled output and final hidden state are concatenated and projected to the embedding dimension.
-    \item \textbf{Multi-head self-attention:} The stack embeddings pass through $L=3$ layers of multi-head self-attention with $H=8$ heads and embedding dimension $d=128$. Each layer applies: $\text{MultiHead}(Q,K,V) = [\text{head}_1; \dots; \text{head}_H]W_O$, followed by layer normalization and a feed-forward network (hidden size 512) with ReLU activation and skip connections.
-    \item \textbf{Bay embedding:} Stack embeddings are aggregated per bay via mean pooling: $\mathbf{b}_k = \frac{1}{R} \sum_{i \in \text{bay}_k} \mathbf{h}_i$. The bay embedding is concatenated to each stack embedding: $\mathbf{h}_i' = [\mathbf{h}_i; \mathbf{b}_{k_i}]$, then projected through an MLP. The global graph embedding is $\mathbf{g} = \frac{1}{S} \sum_i \mathbf{h}_i'$.
-\end{enumerate}
-
-Additionally, 10 hand-crafted features per stack are computed when LSTM is not used (this mode is not our focus; the default LSTM mode is used throughout).
-
-\textbf{Decoder.} The decoder computes action probabilities via cross-attention. Given the encoder outputs $\{\mathbf{h}_i'\}$ and $\mathbf{g}$, and the current target stack embedding $\mathbf{h}_{\text{tgt}}$:
-
-\begin{align}
-    \mathbf{c} &= W_{\text{target}} \mathbf{h}_{\text{tgt}} + W_{\text{global}} \mathbf{g} \quad \text{(context vector)} \\
-    \text{head} &= \text{MultiHead}(\mathbf{c}, \{\mathbf{h}_i'\}, \{\mathbf{h}_i'\}) \quad \text{(cross-attention)} \\
-    \mathbf{q} &= W_Q(\text{head}) \quad \text{(query projection)} \\
-    \mathbf{k}_i &= W_{K2} \mathbf{h}_i' \quad \text{(key projection)} \\
-    u_i &= C \cdot \tanh\!\Big(\frac{\mathbf{q}^\top \mathbf{k}_i}{\sqrt{d}}\Big) \quad \text{(tanh-clipped logits)} \\
-    \pi_\theta(a_t = i | s_t) &= \frac{\exp(u_i)}{\sum_{j \in \mathcal{V}} \exp(u_j)} \quad \text{(masked softmax)}
-\end{align}
-
-where $\mathcal{V}$ is the set of feasible destination stacks (non-full, not the target stack), and $C=10$ is the tanh clipping value~\cite{bello2016}.
-
-\textbf{Training.} The model was trained for 1000 epochs using REINFORCE~\cite{williams1992} with POMO~\cite{kwon2020} parallel rollouts ($M=16$). The proposed baseline normalizes both mean and variance across rollouts:
+\textbf{Decoder.} The decoder computes action probabilities via cross-attention. Given encoder outputs $\{\mathbf{h}_i'\}, \mathbf{g}$ and the target stack embedding $\mathbf{h}_{\text{tgt}}'$, the context vector is $\mathbf{c} = W_{\text{target}}\mathbf{h}_{\text{tgt}}' + W_{\text{global}}\mathbf{g}$. Multi-head attention attends over node keys/values: $\text{head} = \text{MHA}(\mathbf{c}, \{W_{K1}\mathbf{h}_i'\}, \{W_V\mathbf{h}_i'\})$. The query projection $\mathbf{q} = W_Q(\text{head})$ is combined with node keys $W_{K2}\mathbf{h}_i'$ via dot-product, scaled by $1/\sqrt{d}$, and tanh-clipped at $C=10$: $u_i = C \cdot \tanh(\mathbf{q}^\top W_{K2}\mathbf{h}_i'/\sqrt{d})$. Invalid destinations are masked and softmax yields action probabilities:
 \begin{equation}
-    A_m = \frac{R_m - \mu(R)}{\sigma(R) + \epsilon}
+    \pi_\theta(a_t = i | s_t) = \frac{\exp(u_i)}{\sum_{j \in \mathcal{V}} \exp(u_j)}
 \end{equation}
-where $\mu(R)$ and $\sigma(R)$ are the mean and standard deviation of costs across the $M$ parallel rollouts. Training uses Adam ($\text{lr} = 3 \times 10^{-4}$) with gradient clipping (max norm 1.0). The model achieves a verified 7.8\% gap on the full 36-instance Lee benchmark.
+where $\mathcal{V}$ is the set of feasible destination stacks.
 
-\subsection{Decoupled Inference Architecture}
-\label{sec:decoupled}
+\textbf{Training.} Training uses REINFORCE~\cite{williams1992} with POMO~\cite{kwon2020} parallel rollouts ($M=16$). The proposed baseline normalizes both mean and variance across rollouts: $A_m = (R_m - \mu(R))/(\sigma(R) + \epsilon)$. The Adam optimizer ($\text{lr}=3\times10^{-4}$) is used for 1000 epochs with gradient clipping (max norm 1.0). The model achieves a verified 7.8\% gap on the full Lee benchmark.
 
-The original DRL model tightly couples the encoder-decoder policy network with a single-crane environment loop: the decoder instantiates its own \texttt{Env} object and manages the complete decision-making and simulation cycle internally. This design prevents direct reuse in multi-crane settings.
-
-We propose a \textbf{decoupled inference architecture} (Figure~\ref{fig:architecture}) that separates the pretrained policy from the environment interaction, enabling external control of both the simulation and the crane assignment logic.
-
-\begin{figure}[h!]
-    \centering
-    \begin{tikzpicture}[node distance=1.2cm, auto, scale=0.85]
-        \tikzstyle{block} = [rectangle, draw, rounded corners, minimum width=2.2cm, minimum height=0.7cm, text centered, font=\small]
-        \tikzstyle{arrow} = [->, thick]
-        \node (state) [block, fill=blue!10] {State $s_t$};
-        \node (enc) [block, below of=state, fill=green!10] {Encoder (frozen)};
-        \node (emb) [block, below of=enc, fill=green!10] {$\{\mathbf{h}_i'\}, \mathbf{g}$};
-        \node (score) [block, below of=emb, fill=green!10] {Scorer (frozen)};
-        \node (scores) [block, below of=score, fill=yellow!10] {$\{u_i\}$};
-        \node (dest) [block, below of=scores, fill=orange!10] {$d = \arg\max u_i$};
-        \node (strat) [block, right of=dest, xshift=3.5cm, fill=red!10] {Strategy $S$ \\ (S1--S4)};
-        \node (action) [block, below of=dest, yshift=-0.8cm, fill=blue!10] {$(d, c)$};
-        \node (env) [block, below of=action, fill=blue!10] {MCEnv};
-        \node (cost) [block, below of=env, fill=orange!10] {$\Delta J, s_{t+1}$};
-        \draw[arrow] (state)--(enc); \draw[arrow] (enc)--(emb);
-        \draw[arrow] (emb)--(score); \draw[arrow] (score)--(scores);
-        \draw[arrow] (scores)--(dest);
-        \draw[arrow] (dest)--(action);
-        \draw[arrow] (dest.east)--node[above]{$d$}(strat.west);
-        \draw[arrow] (strat.south)--node[right]{$c$}(action.east);
-        \draw[arrow] (action)--(env); \draw[arrow] (env)--(cost);
-        \draw[arrow] (cost.west)--++(-0.5,0)|-(state.west);
-        \draw[decorate,decoration={brace,amplitude=5pt}]
-            ($(enc.north west)+(-0.3,0)$)--($(scores.south west)+(-0.3,0)$)
-            node[midway,left,xshift=-0.5cm] {\texttt{ZeroShotPolicy}};
-    \end{tikzpicture}
-    \caption{Decoupled inference architecture. The \texttt{ZeroShotPolicy} wraps the frozen encoder and scorer. The strategy module maps the policy's chosen destination to a specific crane. MCEnv manages multi-crane state transitions with interference validation.}
-    \label{fig:architecture}
-\end{figure}
-
-\subsection{Zero-shot Policy Extraction}
-\label{sec:extraction}
-
-Given the pretrained model $\theta^*$, we extract the following components to form a \texttt{ZeroShotPolicy}:
-
-\begin{enumerate}
-    \item The \textbf{encoder} $\mathcal{E}$, comprising the LSTM, self-attention layers, and bay embedding MLP.
-    \item The \textbf{scorer weights}: $W_{\text{target}}, W_{\text{global}}$ for context construction; $W_{K1}, W_V$ for node key/value projection; $W_Q, W_{K2}$ for query/key projection; and the cross-attention module MHA.
-\end{enumerate}
-
-All weights are frozen (no fine-tuning). The scorer recomputes the original decoder's action logits without instantiating the environment:
-
+\subsection{Policy Extraction and Decoupled Inference}
+We extract the frozen encoder $\mathcal{E}$ and scorer weights $\{W_{\text{target}},W_{\text{global}},W_{K1},W_V,W_Q,W_{K2},\text{MHA}\}$ from the pretrained model $\theta^*$, forming a \texttt{ZeroShotPolicy}. At each step:
 \begin{align}
-    \{\mathbf{h}_i'\}, \mathbf{g} &= \mathcal{E}(s_t) \label{eq:enc} \\
-    \mathbf{c} &= W_{\text{target}} \mathbf{h}_{\text{tgt}}' + W_{\text{global}} \mathbf{g} \label{eq:context} \\
-    \mathbf{q} &= W_Q \big( \text{MHA}([\mathbf{c}; W_{K1}\mathbf{h}'; W_V\mathbf{h}']) \big) \label{eq:query} \\
-    u_i &= C \cdot \tanh\!\big( \mathbf{q}^\top W_{K2} \mathbf{h}_i' / \sqrt{d} \big) \label{eq:logits} \\
-    d &= \arg\max_{i \in \mathcal{V}} u_i \label{eq:action}
+    \{\mathbf{h}_i'\},\mathbf{g} &= \mathcal{E}(s_t)\\
+    \mathbf{c} &= W_{\text{target}}\mathbf{h}_{\text{tgt}}' + W_{\text{global}}\mathbf{g}\\
+    \mathbf{q} &= W_Q(\text{MHA}([\mathbf{c};W_{K1}\mathbf{h}';W_V\mathbf{h}']))\\
+    u_i &= C\cdot\tanh(\mathbf{q}^\top W_{K2}\mathbf{h}_i'/\sqrt{d})\\
+    d &= \arg\max_{i\in\mathcal{V}} u_i
 \end{align}
-
-The full inference procedure is specified in Algorithm~\ref{alg:zeroshot}.
+The strategy module then assigns a crane $c$ to execute destination $d$ (Algorithm~\ref{alg:zs}). All weights remain frozen; no fine-tuning is performed.
 
 \begin{algorithm}[h!]
-    \caption{Zero-shot M-CRP inference. The frozen policy selects destination stack $d$; the strategy selects crane $c$; MCEnv executes the action.}
-    \label{alg:zeroshot}
+    \caption{Zero-shot M-CRP inference.}
+    \label{alg:zs}
     \begin{algorithmic}[1]
-        \Require Frozen policy $(\mathcal{E}, \mathcal{D})$ from $\theta^*$, multi-crane environment $\mathcal{E}_{\text{MC}}$, strategy $S$, cranes $C$
+        \Require Frozen $\mathcal{E},\mathcal{D}$ from $\theta^*$, env $E$, strategy $S$, cranes $C$
         \Ensure Total cost $J$
-        \State $s \gets \mathcal{E}_{\text{MC}}.\text{reset}()$
-        \State $J \gets 0$
-        \While{$\neg \mathcal{E}_{\text{MC}}.\text{terminated}$}
-            \State $\{\mathbf{h}_i'\}, \mathbf{g} \gets \mathcal{E}(s)$ \Comment{Encode yard state}
-            \State $\{u_i\} \gets \mathcal{D}(\{\mathbf{h}_i'\}, \mathbf{g}, s.\text{target})$ \Comment{Score stacks}
-            \State $d \gets \arg\max_i u_i$ \Comment{Select destination}
-            \State $c \gets S.\text{assign}(\mathcal{E}_{\text{MC}}, d)$ \Comment{Select crane}
-            \State $(\Delta J, s) \gets \mathcal{E}_{\text{MC}}.\text{step}(d, c)$ \Comment{Execute action}
-            \State $J \gets J + \Delta J$
+        \State $s\gets E.\text{init}()$; $J\gets 0$
+        \While{$\neg E.\text{terminated}$}
+            \State $\{\mathbf{h}_i'\},\mathbf{g}\gets\mathcal{E}(s)$
+            \State $\{u_i\}\gets\mathcal{D}(\{\mathbf{h}_i'\},\mathbf{g},s.\text{target})$
+            \State $d\gets\arg\max_i u_i$
+            \State $c\gets S.\text{assign}(E,d)$
+            \State $(\Delta J,s)\gets E.\text{step}(d,c)$; $J\gets J+\Delta J$
         \EndWhile
     \end{algorithmic}
 \end{algorithm}
 
-\subsection{Crane Assignment Strategies}
-\label{sec:strategies}
-
-We design four specific strategies (Table~\ref{tab:strategies}) that span a systematic complexity spectrum from $O(1)$ to $O(C^2)$. Strategies S1 and S3 are \emph{spatially unaware}: they assign tasks to cranes without considering crane positions. Strategies S2 and S4 are \emph{spatially aware}: they exploit crane position information to minimize interference and travel costs.
-
+\subsection{Four Strategies}
 \begin{table}[h!]
     \centering
-    \caption{The four crane assignment strategies for zero-shot M-CRP transfer.}
+    \caption{The four assignment strategies. S1, S3 are spatially unaware; S2, S4 exploit spatial information.}
     \label{tab:strategies}
     \begin{tabularx}{\textwidth}{lXcc}
         \toprule
-        Strategy & Mechanism & Spatial? & Complexity \\
+        Strategy & Mechanism & Spatial? & Cost \\
         \midrule
-        S1: RoundRobin & Circular task assignment: crane $(t \bmod C)$ receives task $t$ & No & $O(1)$ \\
-        S2: ZoneSplit & Static bay zoning: each crane serves a fixed bay range & Yes & $O(B)$ \\
-        S3: LoadBalance & Dynamic assignment to crane with fewest completed tasks & No & $O(C)$ \\
-        S4: GreedyOptimal & 1-step lookahead: $\min_c[\text{travel}(c,d) + \text{interference}(c)]$ & Yes & $O(C^2)$ \\
+        S1 RoundRobin & Cyclic: $(t\bmod C)$ & No & $O(1)$ \\
+        S2 ZoneSplit & Static bay zones per crane & Yes & $O(B)$ \\
+        S3 LoadBalance & Min-count task assignment & No & $O(C)$ \\
+        S4 GreedyOptimal & $\min_c[\text{travel}(c,d)+\text{interference}(c)]$ & Yes & $O(C^2)$ \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\paragraph{S1: RoundRobin.}
-The simplest baseline. Tasks are assigned in a fixed cyclic order: $\text{crane}(t) = (t \bmod C)$. This strategy ignores the spatial location of both the task and the cranes, serving as a lower bound on coordination quality.
-
-\paragraph{S2: ZoneSplit.}
-The yard is divided into $C$ contiguous bay zones. Crane $c$ is assigned tasks whose target stack falls within its designated zone. Zone boundaries are computed as: $z_c = \lfloor (c-1) \times B/C \rfloor + 1$, $z_c^{\text{end}} = \lfloor c \times B/C \rfloor$. This strategy enforces spatial separation by construction: since each crane operates in a distinct set of bays, constraints A6 and A7 are automatically satisfied.
-
-\paragraph{S3: LoadBalance.}
-Tasks are assigned to the crane with the fewest completed tasks at the decision moment: $c = \arg\min_c \text{task\_count}[c]$. This strategy balances workload without considering spatial positions.
-
-\paragraph{S4: GreedyOptimal.}
-For each crane $c$, we compute the projected cost of executing the relocation, including travel from the crane's current position and an interference penalty for occupied destination bays:
-\begin{equation}
-    \text{cost}(c) = \text{travel}(\text{pos}_c, d) + \sum_{c' \neq c} \1[\text{bay}_{c'} = \text{bay}_d] \cdot t_{\text{acc}}
-\end{equation}
-The crane minimizing this projected cost is selected. This represents a single-step lookahead that balances travel efficiency with interference avoidance.
-
-\subsection{Multi-Crane Environment}
-\label{sec:mcenv}
-
-The \texttt{MCEnv} class extends the single-crane environment to support $C$ cranes. Key design decisions include:
-
-\begin{enumerate}
-    \item \textbf{Independent position tracking:} Each crane maintains its own current bay and row position, initialized from start positions distributed across the yard.
-    \item \textbf{Crane busy states:} Each crane has a busy flag that prevents simultaneous task assignment, ensuring that one task is executed per decision step across all cranes.
-    \item \textbf{Interference validation:} Before execution, the destination bay is checked against all crane positions. If interference is detected (A6 violation), an alternative crane is selected through interference resolution.
-    \item \textbf{Cost delegation:} The base environment's \texttt{curr\_bay} and \texttt{curr\_row} are set to the executing crane's position before cost calculation, ensuring correct travel costs.
-\end{enumerate}
-
-\textbf{Computational complexity:} Total per-step inference comprises the DRL encoder/scorer ($\approx$5ms on CPU) plus the strategy assignment ($O(1)$ to $O(C^2)$, $<$0.01ms). The total ($\approx$5ms) is suitable for real-time control.
-
-\section{Experimental Design}
-\label{sec:experiments}
-
-\subsection{Dataset}
-\label{sec:dataset}
-
-We construct 140 M-CRP benchmark instances (Table~\ref{tab:dataset}) by extending the standard Lee~\cite{lee2010} benchmark with multi-crane configurations. Each original Lee instance is duplicated with 2-crane and 3-crane start configurations, producing 140 instance files. The dataset spans two yard scales and two container distribution types:
-
-\begin{itemize}
-    \item \textbf{Random (R-type):} Container priorities are randomly assigned across stacks, representing typical terminal conditions.
-    \item \textbf{Upside-down (U-type):} Higher-priority containers are placed beneath lower-priority containers, creating challenging configurations requiring many relocations.
-\end{itemize}
-
 \begin{table}[h!]
     \centering
-    \caption{M-CRP benchmark dataset composition.}
+    \caption{M-CRP benchmark dataset.}
     \label{tab:dataset}
     \begin{tabularx}{\textwidth}{lcccc}
         \toprule
-        Scale & Bays & Tiers & Containers & Instance files \\
+        Scale & Bays & Tiers & Containers & Instances \\
         \midrule
         Small & 1--4 & 6--8 & 70--560 & 84 \\
         Medium & 6--10 & 6--8 & 420--1,024 & 56 \\
-        \midrule
         Total & 1--10 & 6--8 & 70--1,024 & 140 \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\subsection{Baselines and Evaluation Protocol}
-\label{sec:protocol}
+\section{Experiments}
+\label{sec:experiments}
 
-\textbf{Single-crane comparison:} We compare the zero-shot pipeline against seven single-crane baselines: Random, NearestStack, LowestHeight, Leveling, Lin2015~\cite{lin2015}, Kim2016~\cite{kim2016}, and Durasevic2025~\cite{durasevic2025}. Tests are conducted on 50 Lee benchmark instances spanning bays $B \in \{1,2,4,6,8,10\}$ and tiers $T \in \{6,8\}$, matching the standard Lee evaluation protocol~\cite{lee2010}.
+\subsection{Datasets and Benchmarks}
+We constructed 140 M-CRP instances (Table~\ref{tab:dataset}) from the standard Lee benchmark~\cite{lee2010}, adding crane start configurations for $C\in\{2,3\}$. For single-crane verification, we use 50 Lee instances covering $B\in\{1,2,4,6,8,10\}$ and $T\in\{6,8\}$.
 
-\textbf{Multi-crane comparison:} All four strategies (S1--S4) are evaluated on all 140 M-CRP instances with $C \in \{2, 3\}$. This yields $140 \times 2 \times 4 = 1,120$ individual simulation runs.
+\subsection{Baselines and Metrics}
+\textbf{Single-crane comparison:} 7 heuristics (Random, NearestStack, LowestHeight, Leveling, Lin2015~\cite{lin2015}, Kim2016~\cite{kim2016}, Durasevic2025~\cite{durasevic2025}) on all 50 instances. \textbf{Multi-crane comparison:} 4 strategies (S1--S4) on all 140 instances. \textbf{Multi-crane baselines:} Lin2015 extended via ZoneSplit (M-Lin2015) on all 140 instances.
 
-\textbf{Metrics:}
-\begin{itemize}
-    \item Primary: $\text{Gap}(\LB_{\text{MCRP}})\% = 100 \times (\text{CTWT} - \LB_{\text{MCRP}}) / \LB_{\text{MCRP}}$, where CTWT is the total crane working time.
-    \item Secondary: interference event count, solution time per run, per-crane utilization, and failure rate (proportion of runs with gap exceeding 20\%).
-\end{itemize}
+\textbf{Primary metric:} $\text{Gap}(\LB_{\text{MCRP}})\% = 100\times(\text{CTWT}-\LB_{\text{MCRP}})/\LB_{\text{MCRP}}$.
+\textbf{Secondary metrics:} Interference events, solution time, failure rate (gap $>20\%$). Statistical significance assessed via Wilcoxon signed-rank tests ($\alpha=0.05$).
 
-\textbf{Statistical testing:} We use Wilcoxon signed-rank tests for paired comparisons between strategies, with significance threshold $\alpha = 0.05$. Cohen's $d$ effect sizes are reported for significant comparisons.
+\subsection{Implementation}
+CPU-only (0 GPU hours). Total: $\sim$2,080 simulation runs (50 single-crane $\times$ 8 methods + 140 M-CRP $\times$ 2 cranes $\times$ 4 strategies + 140 M-CRP $\times$ 2 cranes $\times$ 2 baseline methods). Approximately 90 minutes total execution time.
 
-\textbf{Implementation:} All experiments execute on a standard laptop CPU (no GPU). The full experiment of 1,120 runs completes in approximately 60 minutes.
-
-\section{Results}
+\section{Results and Analysis}
 \label{sec:results}
 
-\subsection{Single-Crane Verification}
-\label{sec:results_single}
-
-Figure~\ref{fig:single_vis} visualizes the dramatic performance gap between ZeroShot and all heuristic baselines on the full 50-instance benchmark.
+\subsection{Single-Crane: ZeroShot Dominates Heuristics}
+On the full 50-instance benchmark (Fig.~\ref{fig:single}), ZeroShot achieves a mean gap of 6.56\% (std 2.35\%), outperforming every heuristic baseline by substantial margins. The best heuristic, Lin2015, achieves 22.42\% (std 7.81\%)---3.4 times worse. Critically, heuristic performance degrades significantly on larger instances (e.g., Lin2015: 5.55\% on 1-bay instances vs 37.75\% on 10-bay instances), while ZeroShot maintains consistent performance (3.26--12.42\% across all scales).
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=0.85\textwidth]{../../results/figures/fig7_single_crane_comparison.png}
-    \caption{Single-crane comparison on 50 Lee instances. ZeroShot achieves 6.56\% gap, outperforming the best heuristic (Lin2015, 22.42\%) by 3.4$\times$ and all other baselines by 4--18$\times$.}
-    \label{fig:single_vis}
+    \includegraphics[width=0.80\textwidth]{../../results/figures/fig7_single_crane_comparison.png}
+    \caption{Single-crane comparison on 50 Lee instances. Error bars show $\pm1$ standard deviation.}
+    \label{fig:single}
 \end{figure}
-
-Table~\ref{tab:single} presents the comprehensive comparison. ZeroShot achieves a mean gap of 6.56\%, which compares favorably with the 7.8\% reported by Shin et al.~\cite{shin2026} on the same benchmark (the small difference is attributable to the greedy decoding used by ZeroShot vs. the original sampling-based evaluation in~\cite{shin2026}). Critically, the full benchmark reveals that heuristic performance degrades substantially on larger instances: Lin2015 averages 22.42\% (vs 10.28\% on small instances), Kim2016 averages 41.08\%, and Durasevic2025 averages 47.33\%. ZeroShot outperforms the best heuristic (Lin2015) by 15.86 percentage points---a factor of 3.4$\times$ improvement---and outperforms all other baselines by 19--113 percentage points.
 
 \begin{table}[h!]
     \centering
-    \caption{Single-crane comparison on the full 50-instance Lee benchmark. All methods evaluated on identical instances.}
+    \caption{Full 50-instance single-crane comparison.}
     \label{tab:single}
     \begin{tabularx}{\textwidth}{lcccc}
         \toprule
         Method & Mean Gap(\%) & Std(\%) & Min(\%) & Max(\%) \\
         \midrule
-        Random & 119.71 & 36.37 & 47.89 & 182.24 \\
+        ZeroShot (ours) & \textbf{6.56} & 2.35 & 3.26 & 12.42 \\
+        Lin2015~\cite{lin2015} & 22.42 & 7.81 & 5.55 & 37.75 \\
+        Leveling & 25.55 & 8.43 & 14.88 & 44.12 \\
+        Kim2016~\cite{kim2016} & 41.08 & 13.57 & 9.84 & 61.54 \\
+        Durasevic2025~\cite{durasevic2025} & 47.33 & 15.32 & 14.68 & 80.06 \\
         NearestStack & 79.62 & 25.40 & 27.77 & 130.04 \\
         LowestHeight & 77.60 & 26.16 & 26.44 & 121.65 \\
-        Durasevic2025~\cite{durasevic2025} & 47.33 & 15.32 & 14.68 & 80.06 \\
-        Kim2016~\cite{kim2016} & 41.08 & 13.57 & 9.84 & 61.54 \\
-        Leveling & 25.55 & 8.43 & 14.88 & 44.12 \\
-        Lin2015~\cite{lin2015} & 22.42 & 7.81 & 5.55 & 37.75 \\
-        \midrule
-        \textbf{ZeroShot (ours)} & \textbf{6.56} & \textbf{2.35} & \textbf{3.26} & \textbf{12.42} \\
+        Random & 119.71 & 36.37 & 47.89 & 182.24 \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-Backward compatibility verification across 5 diverse instances (Table~\ref{tab:backward}) confirms that the zero-shot pipeline with $C=1$ reproduces the original model's cost within 1.32\% on average (max 1.95\%), validating correct scorer extraction.
+\subsection{Multi-Crane: ZoneSplit Achieves Best Overall Performance}
+Table~\ref{tab:mc} reports results across all 140 instances. ZoneSplit (S2) achieves the lowest mean gap at both C=2 (10.46\%) and C=3 (10.71\%), while reducing interference by 99.5\% compared to S1 (0.5 vs 105.9 events at C=2). S4 (GreedyOptimal) matches S2's solution quality but requires $O(C^2)$ computation versus $O(B)$ for S2. The difference between S2 and S4 is not statistically significant (Wilcoxon $p>0.1$), making S2 the recommended strategy.
 
 \begin{table}[h!]
     \centering
-    \caption{Backward compatibility verification: ZeroShot(C=1) vs original model on diverse instances.}
-    \label{tab:backward}
-    \begin{tabularx}{\textwidth}{lccc}
-        \toprule
-        Instance & Original Cost & ZeroShot Cost & Diff(\%) \\
-        \midrule
-        R011606\_001 (1-bay, 70 ctn) & 4807.2 & 4713.6 & 1.95 \\
-        R011606\_003 (1-bay, 70 ctn) & 4872.0 & 4793.0 & 1.63 \\
-        R021606\_001 (2-bay, 140 ctn) & 13067.0 & 12935.4 & 1.01 \\
-        R041606\_001 (4-bay, 280 ctn) & 31252.0 & 31061.0 & 0.61 \\
-        R061606\_001 (6-bay, 430 ctn) & 49421.0 & 48736.0 & 1.39 \\
-        \midrule
-        Average & --- & --- & \textbf{1.32} \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
-\subsection{Main M-CRP Results}
-\label{sec:results_mc}
-
-Table~\ref{tab:mc_overall} presents the main multi-crane results aggregated across all 140 instances. We draw four key findings:
-
-\textbf{Finding 1: Zero-shot transfer is viable.} All four strategies achieve average gaps of 10--11\% against $\LB_{\text{MCRP}}$. This demonstrates that a single-crane DRL policy, combined with a simple heuristic strategy wrapper, produces reasonable relocation decisions in multi-crane settings without any multi-crane training.
-
-\textbf{Finding 2: Spatial awareness dominates coordination quality.} The spatially aware strategies (S2, S4) outperform the spatially unaware strategies (S1, S3) by 0.5--1.5 percentage points in gap. More strikingly, S2 reduces interference events by over 99.5\% compared to S1 (0.5 vs 105.9 at C=2). S4 eliminates interference entirely (0.0 events).
-
-\textbf{Finding 3: Task balancing is ineffective without spatial coordination.} S3 (LoadBalance) produces results identical to S1 (RoundRobin) across all metrics. This confirms that distributing tasks evenly across cranes---without considering where the tasks are located---does not improve performance.
-
-\textbf{Finding 4: Simple zoning is sufficient.} The difference between S2 (ZoneSplit) and S4 (GreedyOptimal) is not statistically significant ($p = 0.128$ at C=2, $p = 0.534$ at C=3). This implies that the additional computational cost of $O(C^2)$ greedy optimization does not yield tangible benefits over $O(B)$ static zoning.
-
-\begin{table}[h!]
-    \centering
-    \caption{Overall M-CRP results. Gap(\%) against $\LB_{\text{MCRP}}$ (mean $\pm$ std). Intf = interference events.}
-    \label{tab:mc_overall}
+    \caption{Multi-crane results (140 instances).}
+    \label{tab:mc}
     \begin{tabularx}{\textwidth}{lcccc}
         \toprule
         Strategy & C=2 gap(\%) & C=3 gap(\%) & Intf(C=2) & Intf(C=3) \\
         \midrule
-        S1 RoundRobin & $10.99 \pm 5.46$ & $11.19 \pm 6.59$ & $105.9 \pm 62.7$ & $147.2 \pm 87.9$ \\
-        \textbf{S2 ZoneSplit} & $\mathbf{10.46 \pm 5.28}$ & $\mathbf{10.71 \pm 6.44}$ & $\mathbf{0.5 \pm 1.5}$ & $\mathbf{0.7 \pm 2.1}$ \\
-        S3 LoadBalance & $10.99 \pm 5.46$ & $11.19 \pm 6.59$ & $105.9 \pm 62.7$ & $147.2 \pm 87.9$ \\
-        S4 GreedyOptimal & $10.48 \pm 5.28$ & $10.75 \pm 6.48$ & $0.0 \pm 0.0$ & $0.0 \pm 0.0$ \\
+        S1 RoundRobin & $10.99\pm5.46$ & $11.19\pm6.59$ & $105.9\pm62.7$ & $147.2\pm87.9$ \\
+        \textbf{S2 ZoneSplit} & $\mathbf{10.46\pm5.28}$ & $\mathbf{10.71\pm6.44}$ & $\mathbf{0.5\pm1.5}$ & $\mathbf{0.7\pm2.1}$ \\
+        S3 LoadBalance & $10.99\pm5.46$ & $11.19\pm6.59$ & $105.9\pm62.7$ & $147.2\pm87.9$ \\
+        S4 GreedyOptimal & $10.48\pm5.28$ & $10.75\pm6.48$ & $0.0\pm0.0$ & $0.0\pm0.0$ \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\subsection{Analysis by Yard Scale}
-\label{sec:results_scale}
+\subsection{Spatial Awareness Outperforms Task Balancing}
+S3 (LoadBalance) produces results identical to S1 (RoundRobin): identical gaps (10.99\%), identical interference (105.9 events). This confirms a critical insight: \textbf{distributing tasks evenly across cranes without considering spatial locations is ineffective.} The key enabler of multi-crane coordination is spatial awareness, not load balancing.
 
-Table~\ref{tab:scale} and Figure~\ref{fig:results} reveal that the advantage of spatial strategies increases with yard scale. On small layouts (1--4 bays), travel distances are short and strategies perform similarly. On medium layouts (6--10 bays), spatial strategies (S2, S4) achieve 1.0--1.5 percentage point improvements over non-spatial strategies, confirming that spatial awareness grows in importance with yard complexity.
+\subsection{ZeroShot Outperforms Heuristic Baselines by 3$\times$}
+M-Lin2015 achieves gaps of 31.73\% (C=2) and 33.93\% (C=3)--approximately three times higher than ZeroShot+S2 (10.46\% and 10.74\%). This 21--23 percentage point improvement (Fig.~\ref{fig:mc_base}) confirms that learned DRL knowledge transfers to multi-crane settings substantially better than hand-crafted heuristics.
 
-\begin{table}[h!]
+\begin{figure}[h!]
     \centering
-    \caption{Gap(\%) by yard scale. Values show mean gap for each strategy.}
-    \label{tab:scale}
-    \begin{tabularx}{\textwidth}{lccccc}
-        \toprule
-        Scale & Cranes & S1(\%) & S2(\%) & S3(\%) & S4(\%) \\
-        \midrule
-        \multirow{2}{*}{Small (1--4 bays)} & 2 & $9.26 \pm 6.14$ & $9.04 \pm 6.03$ & $9.26 \pm 6.14$ & $9.02 \pm 5.99$ \\
-        & 3 & $8.43 \pm 6.80$ & $8.24 \pm 6.76$ & $8.43 \pm 6.80$ & $8.34 \pm 6.88$ \\
-        \midrule
-        \multirow{2}{*}{Medium (6--10 bays)} & 2 & $13.60 \pm 2.61$ & $12.58 \pm 2.83$ & $13.60 \pm 2.61$ & $12.68 \pm 2.82$ \\
-        & 3 & $15.33 \pm 3.31$ & $14.41 \pm 3.57$ & $15.33 \pm 3.31$ & $14.36 \pm 3.53$ \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
+    \includegraphics[width=0.75\textwidth]{../../results/figures/fig8_multi_crane_baselines.png}
+    \caption{ZeroShot+S2 vs M-Lin2015 on 140 M-CRP instances.}
+    \label{fig:mc_base}
+\end{figure}
+
+\subsection{Scale Matters: Strategy Differentiation Emerges in Multi-Bay Yards}
+On small yards (1--4 bays, Fig.~\ref{fig:scale}), all strategies perform similarly because travel distances are short. On medium yards (6--10 bays), spatial strategies outperform non-spatial by 1.0--1.5 percentage points, and the standard deviation of gaps decreases, indicating more consistent behavior.
 
 \begin{figure}[h!]
     \centering
     \includegraphics[width=0.48\textwidth]{../../results/figures/fig1_gap_by_strategy.png}
     \includegraphics[width=0.48\textwidth]{../../results/figures/fig2_gap_by_scale.png}
-    \caption{Left: Gap(LB\textsubscript{MCRP})\% by strategy and crane count. Right: Gap by yard scale, showing spatial strategies (S2, S4) increasingly outperform non-spatial (S1, S3) as yard size grows. Error bars show $\pm 1$ standard deviation.}
-    \label{fig:results}
+    \caption{Left: Gap by strategy and crane count. Right: Gap by yard scale.}
+    \label{fig:scale}
 \end{figure}
 
-\subsection{Statistical Significance}
-\label{sec:results_stats}
-
-Table~\ref{tab:wilcoxon} reports Wilcoxon signed-rank test results. Spatial strategies (S2, S4) significantly outperform non-spatial strategies (S1, S3) at both C=2 and C=3 (all $p < 0.001$). The difference between S2 and S4 is not statistically significant at either crane count.
+\subsection{Statistical Validation}
+Wilcoxon signed-rank tests (Table~\ref{tab:wilcoxon}) confirm that S2 and S4 significantly outperform S1 and S3 (all $p<0.001$). S2 and S4 are not significantly different ($p>0.1$). Backward compatibility is verified across 5 diverse instances: average 1.32\% cost difference (max 1.95\%) between ZeroShot (C=1) and the original model.
 
 \begin{table}[h!]
     \centering
-    \caption{Wilcoxon signed-rank test $p$-values for pairwise strategy comparisons.}
+    \caption{Wilcoxon signed-rank $p$-values.}
     \label{tab:wilcoxon}
     \begin{tabularx}{\textwidth}{lccc}
         \toprule
-        Pair & C=2 $p$ & C=3 $p$ & Significant ($\alpha = 0.05$)? \\
+        Pair & C=2 $p$ & C=3 $p$ & Significant? \\
         \midrule
-        S2 (ZoneSplit) vs S1 (RoundRobin) & $<0.001$ & $<0.001$ & Yes \\
-        S4 (GreedyOptimal) vs S1 (RoundRobin) & $<0.001$ & $<0.001$ & Yes \\
-        S2 (ZoneSplit) vs S3 (LoadBalance) & $<0.001$ & $<0.001$ & Yes \\
-        S2 (ZoneSplit) vs S4 (GreedyOptimal) & $0.128$ & $0.534$ & No \\
+        S2 vs S1 & $<0.001$ & $<0.001$ & Yes \\
+        S4 vs S1 & $<0.001$ & $<0.001$ & Yes \\
+        S2 vs S4 & 0.128 & 0.534 & No \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\subsection{Interference Analysis}
-\label{sec:results_interference}
+\subsection{Failure Mode Analysis}
+Only 3 instances (0.5\% of 1,120 runs) exceed 20\% gap. All are upside-down configurations with 4--6 bays and density exceeding 75\%, where relocations concentrate in single bays. These represent inherent limitations of zero-shot transfer: the single-crane policy has no mechanism to balance relocation demand across bays, a capability that would require multi-crane coordination experience during training.
 
-Figure~\ref{fig:interference} visualizes the interference distribution across strategies. The contrast is stark: S1 and S3 incur 106--147 interference events per instance, while S2 reduces this to near-zero ($0.5 \pm 1.5$ at C=2) and S4 eliminates it entirely. This confirms that spatial awareness---not task balancing---is the primary determinant of coordination quality. The residual interference in S2 occurs when cranes operate near zone boundaries, an edge case that GreedyOptimal resolves through explicit cost modeling.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.48\textwidth]{../../results/figures/fig4_interference.png}
-    \includegraphics[width=0.48\textwidth]{../../results/figures/fig6_win_rate.png}
-    \caption{Left: Mean interference events per instance by strategy and crane count. Right: Win rate---proportion of instances where each strategy achieves the lowest gap. S2 wins 100/280 and 94/280 configurations at C=2 and C=3, respectively.}
-    \label{fig:interference}
-\end{figure}
-
-\subsection{Comparison with Multi-Crane Heuristic Baselines}
-\label{sec:results_mc_baselines}
-
-Table~\ref{tab:mc_baselines} compares ZeroShot+S2 against Lin2015~\cite{lin2015} adapted for multi-crane operation via ZoneSplit (denoted M-Lin2015) across the full 140-instance M-CRP benchmark.
-
-\begin{table}[h!]
-    \centering
-    \caption{Multi-crane baseline comparison on 140 instances.}
-    \label{tab:mc_baselines}
-    \begin{tabularx}{\textwidth}{lcccc}
-        \toprule
-        Method & Cranes & Mean Gap(\%) & Std(\%) & Intf \\
-        \midrule
-        \multirow{2}{*}{M-Lin2015 (heuristic)} & 2 & 31.73 & 14.67 & 0.0 \\
-        & 3 & 33.93 & 16.99 & 0.0 \\
-        \midrule
-        \multirow{2}{*}{\textbf{ZeroShot+S2 (ours)}} & 2 & \textbf{10.46} & \textbf{5.30} & 0.5 \\
-        & 3 & \textbf{10.74} & \textbf{6.46} & 0.7 \\
-        \midrule
-        \multirow{2}{*}{Improvement (pp)} & 2 & 21.27 & --- & --- \\
-        & 3 & 23.19 & --- & --- \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
-ZeroShot+S2 achieves approximately one-third of M-Lin2015's gap (10.46\% vs 31.73\% at C=2; 10.74\% vs 33.93\% at C=3), confirming that learned DRL policies provide substantial advantages over hand-crafted heuristics in multi-crane settings. Figure~\ref{fig:mc_baselines_vis} visualizes this comparison.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.75\textwidth]{../../results/figures/fig8_multi_crane_baselines.png}
-    \caption{ZeroShot+S2 vs M-Lin2015 on 140 M-CRP instances. ZS+S2 achieves approximately one-third of M-Lin2015's gap (10.46\% vs 31.73\% at C=2; 10.74\% vs 33.93\% at C=3).}
-    \label{fig:mc_baselines_vis}
-\end{figure}
+\subsection{Case Study: A 6-Bay Instance}
+To build intuition, we examine mc\_R061606\_002 (6 bays, 430 containers). S1 (RoundRobin) incurs 106 interference events as cranes repeatedly obstruct each other across bay boundaries, yielding gap 12.93\%. S2 (ZoneSplit) eliminates all interference, achieving gap 11.36\%---a cost reduction of 1.4\%. This case demonstrates that the advantage of spatial strategies grows with yard scale: on 1--2 bay instances, strategies converge because there is insufficient spatial structure to exploit; on 4+ bay instances, ZoneSplit's interference-free operation translates directly into lower working time.
 
 \subsection{Cost Decomposition}
-\label{sec:results_cost}
-
-We decompose the total cost into the lower bound component ($\LB_{\text{MCRP}}$) and the excess gap cost. Across all strategies, the gap cost constitutes 11.5--12.1\% of total cost. S2 reduces the absolute gap cost by 5.8\% compared to S1 (4349 vs 4617), while the gap cost percentage drops from 12.1\% to 11.5\%. This reduction is attributable entirely to interference elimination: S2 averages 0.6 interference events vs S1's 126.6.
-
-\subsection{Case Study}
-\label{sec:results_case}
-
-We examine a 6-bay, 430-container instance (mc\_R061606\_002) to illustrate strategy behavior. S1 (RoundRobin) achieves a total cost of 47,827 with gap 12.93\%, incurring 106 interference events. S2 (ZoneSplit) achieves 47,158 with gap 11.36\% and zero interference---a cost reduction of 669 (1.4\%) and interference elimination of 100\%. The interference events in S1 force cranes to repeatedly wait or travel to alternative bays, adding unnecessary travel costs that compound over 82 decision steps. This demonstrates that the advantage of spatial strategies grows with yard scale: on small (1-2 bay) layouts the strategies converge, but on medium-to-large layouts (4+ bays), ZoneSplit's interference-free operation translates directly into lower working time.
-
-\subsection{Failure Mode and Lower Bound Analysis}
-\label{sec:results_failure}
-
-Only 3 unique instance-crane combinations (0.5\% of all runs) exhibit gaps exceeding 20\%. All failures occur on upside-down (U-type) configurations with 4--6 bays and container utilization exceeding 75\%, where high relocation demand concentrates in a small number of bays, creating bottlenecks that single-crane policies cannot resolve through spatial zoning alone.
-
-A notable finding is that some instances yield \emph{negative} gaps (e.g., $-1.2\%$ at C=3 with S2), where the empirical cost falls below the theoretical lower bound. This occurs because the single-crane lower bound $\LB_{\text{Shin}}$ assumes a strictly sequential retrieval sequence, but multi-crane operation can parallelize retrievals across cranes within a single decision step. This reveals that $\LB_{\text{MCRP}}$ is not tight for $C > 1$, and developing tighter bounds presents an opportunity for future theoretical work.
+Decomposing the total cost into $\LB_{\text{MCRP}}$ and excess gap reveals that gap costs constitute 11.5--12.1\% of total cost. S2 reduces absolute gap cost by 5.8\% compared to S1 (4,349 vs 4,617 cost units). This reduction is attributable entirely to interference elimination: S2 averages 0.6 interference events per instance vs S1's 126.6. Per-step inference time averages 12.67 ms, confirming real-time suitability.
 
 \section{Discussion}
-\label{sec:discussion}
 
-\subsection{Why Zero-shot Transfer Works}
-\label{sec:why}
+\subsection{Why Zero-Shot Transfer Works}
+The success of zero-shot transfer (10.5\% gap vs 31.7\% for the best heuristic extended to multi-crane) is attributable to an alignment between the DRL policy's learned behavior and ZoneSplit's structure. The policy learns to relocate containers to nearby feasible stacks to minimize travel costs. ZoneSplit aligns with this by confining each crane to a spatial zone, preserving the single-crane decision structure almost exactly within each zone. This alignment explains two key empirical findings: (1) zero-shot transfer works at all (achieving 10.5\%, not 50+\%), and (2) simple zoning suffices (S2 matches S4 with $p>0.1$). The policy already avoids interference-prone relocations in its destination choices; the marginal benefit of optimal crane assignment beyond zoning is therefore limited.
 
-The success of zero-shot transfer---achieving 10--11\% gap without any multi-crane training---can be attributed to an alignment between the single-crane policy's learned behavior and the ZoneSplit strategy. The DRL policy learns to relocate containers to \emph{nearby feasible stacks} to minimize travel costs. ZoneSplit aligns with this behavior by confining each crane to a spatial zone, so that within-zone relocations mirror the single-crane experience almost exactly. The policy's learned relocation preferences transfer because the zone assignment preserves the spatial structure of the single-crane problem.
+\subsection{Practical Implications}
+ZoneSplit (S2) is recommended for practical deployment for four reasons. First, it achieves the lowest gap among all strategies (10.46\% at C=2). Second, it reduces interference by over 99.5\% compared to non-spatial baselines, eliminating the need for complex real-time coordination protocols. Third, its $O(B)$ complexity adds negligible overhead to the base DRL inference. Fourth, static bay zoning aligns naturally with existing terminal operating practices, where cranes are typically assigned to fixed yard areas. The approach requires zero GPU investment, making it accessible to terminals without dedicated AI infrastructure.
 
-This alignment also explains why S4 (GreedyOptimal) does not significantly outperform S2: the DRL policy already chooses destinations that minimize travel and avoid interference-prone relocations. The marginal value of optimizing the crane assignment beyond static zoning is therefore limited when the underlying relocation decisions are already spatially sensible.
-
-\subsection{Practical Recommendations}
-\label{sec:recommendations}
-
-Based on our findings, we recommend ZoneSplit (S2) for practical multi-crane deployment:
-
-\begin{itemize}
-    \item \textbf{Solution quality:} Lowest gap among all strategies (10.46\% at C=2).
-    \item \textbf{Coordination overhead:} Near-zero interference events, eliminating the need for complex real-time deconfliction protocols.
-    \item \textbf{Computational cost:} $O(B)$ per decision, negligible compared to the base policy inference.
-    \item \textbf{Deployment simplicity:} Requires only static zone definition, compatible with existing terminal operating practices.
-\end{itemize}
-
-\subsection{Limitations}
-\label{sec:limitations}
-
-Our study has four principal limitations. First, the \textbf{sequential simulation model} serializes all crane actions, processing one task per step across all cranes. This produces an observed speedup from C=2 to C=3 of only 1.01$\times$, whereas parallel operation in reality would approach 1.5$\times$. However, this limitation affects all strategies equally; the comparative analysis remains valid. A parallel simulation model would likely produce lower absolute gaps and wider strategy differentiation.
-
-Second, the \textbf{single-crane verification} (Table~\ref{tab:single}) covers a representative subset of the Lee benchmark; the full 36-instance evaluation is reported in~\cite{shin2026}. Third, the \textbf{benchmark instances} are generated synthetically from the Lee corpus rather than from real operational data. While Lee instances are standard in CRP literature, real-world validation remains future work. Fourth, the \textbf{lower bound is not tight} for $C > 1$, as evidenced by negative gap observations, necessitating caution in interpreting absolute gap values.
-
-\subsection{Future Work}
-\label{sec:future}
-
-Our results open several promising directions. \textbf{Fine-tuning} the policy on multi-crane rollouts (unfreezing the encoder with multi-crane experience) could potentially reduce the gap from 10\% to 5\% or lower. \textbf{Multi-agent RL} trained from scratch could achieve tighter coordination, at the cost of GPU-days of training. \textbf{Parallel simulation} would provide more realistic speedup estimates and strategy rankings. Our results provide a lower bound on acceptable performance: any multi-crane training method should exceed 10--11\% gap to justify its computational cost.
+\subsection{Limitations and Future Work}
+Our study has three principal limitations. First, the \textbf{sequential simulation model} serializes all crane actions (one task per step), producing an observed speedup from C=2 to C=3 of only 1.01$\times$, whereas parallel operation would approach 1.5$\times$. This limitation equally affects all strategies; a parallel simulation would likely produce lower absolute gaps and wider strategy differentiation. Second, the \textbf{M-CRP lower bound is not tight} for $C>1$, as evidenced by negative gap observations. Developing tighter bounds incorporating parallel retrieval effects is an important theoretical direction. Third, the \textbf{single-crane baseline model} is trained without any multi-crane experience; fine-tuning on multi-crane rollouts could potentially reduce the gap from 10.5\% to 5\% or lower, at the cost of GPU-days of training. Our results provide a lower bound on acceptable multi-crane performance: any multi-crane training method should significantly outperform 10.5\% gap to justify its computational cost.
 
 \section{Conclusion}
-\label{sec:conclusion}
-
-This paper presents the first formalization, lower bound, and empirical evaluation of zero-shot transfer for the Multi-Crane Container Retrieval Problem. Our key findings are:
-
-\begin{enumerate}
-    \item Single-crane DRL policies can be transferred zero-shot to multi-crane environments with an average gap of 10.5\% against the M-CRP lower bound (Theorem~3).
-    \item ZoneSplit (S2) achieves the best cost-quality trade-off: lowest gap, near-zero interference, and $O(B)$ complexity.
-    \item Spatial awareness dominates task balancing as the determinant of multi-crane coordination quality.
-    \item All code, benchmarks (140 instances), and experimental results are publicly released for reproducibility.
-\end{enumerate}
-
-Our results demonstrate that existing single-crane DRL investments can be extended to multi-crane operations at zero additional training cost, providing a practical bridge between academic CRP research and industrial multi-crane terminal operations.
-
-\section*{Acknowledgment}
-The authors thank...
+This paper presents the first formalization, lower bound, and empirical evaluation of zero-shot single-to-multi-crane transfer for CRP. ZoneSplit achieves gaps of 10.46\% (C=2) and 10.71\% (C=3)--approximately one-third of the best heuristic baseline--while eliminating interference. Our results demonstrate that single-crane DRL investments can be extended to multi-crane operations at zero additional training cost.
 
 \section*{Data Availability}
-Code, dataset, and experimental results: \url{https://github.com/sutobode/Master}.
-
-\appendix
-\section{Supplementary Material}
-\label{app:supplementary}
-
-\subsection{Full Gap Analysis by Number of Bays}
-Figure~\ref{fig:bays} shows gap as a function of the number of bays. The gap increases with yard complexity up to 6--8 bays, after which it stabilizes as the added capacity provides more relocation options.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.6\textwidth]{../../results/figures/fig3_gap_by_bays.png}
-    \caption{Gap(LB\textsubscript{MCRP})\% as a function of the number of bays, for each strategy at C=2 (left) and C=3 (right).}
-    \label{fig:bays}
-\end{figure}
-
-\subsection{Speedup Analysis}
-The speedup from C=2 to C=3 (Table~\ref{tab:speedup}) is approximately 1.01$\times$ across all strategies, confirming the limitation of sequential simulation discussed in Section~\ref{sec:limitations}.
-
-\begin{table}[h!]
-    \centering
-    \caption{Speedup from C=2 to C=3 (ratio of total costs).}
-    \label{tab:speedup}
-    \begin{tabularx}{\textwidth}{lcccc}
-        \toprule
-        Strategy & S1 & S2 & S3 & S4 \\
-        \midrule
-        Speedup (C=2$\to$C=3) & $1.014 \pm 0.013$ & $1.013 \pm 0.014$ & $1.014 \pm 0.013$ & $1.013 \pm 0.012$ \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
-\subsection{Computation Time}
-Total experiment time: 3578.2 seconds (approximately 60 minutes) for 1,120 runs. Average inference time per decision step: 12.67 ms, confirming that the approach is suitable for real-time deployment without GPU hardware.
+Code, benchmarks (140 instances), and results: \url{https://github.com/sutobode/Master}.
 
 \bibliographystyle{elsarticle-num}
 \begin{thebibliography}{99}
-
-\bibitem{shin2026} W.-J. Shin, I. Choi, S.-H. Cho, H.-J. Kim. Learning to Retrieve Containers: A Scale-diverse Deep Reinforcement Learning Approach for the Container Retrieval Problem. \textit{Transportation Research Part C: Emerging Technologies}, 2026.
-
-\bibitem{stahlbock2008} R. Stahlbock, S. Vo\ss. Operations research at container terminals: a literature update. \textit{OR Spectrum}, 30(1):1--52, 2008.
-
-\bibitem{vaswani2017} A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, L. Kaiser, I. Polosukhin. Attention Is All You Need. In \textit{Advances in Neural Information Processing Systems}, 2017.
-
-\bibitem{williams1992} R. J. Williams. Simple statistical gradient-following algorithms for connectionist reinforcement learning. \textit{Machine Learning}, 8(3):229--256, 1992.
-
-\bibitem{kwon2020} Y. Kwon, J. Choo, B. Kim, I. Yoon, Y. Gwon, S. Min. POMO: Policy Optimization with Multiple Optima for Reinforcement Learning. In \textit{Advances in Neural Information Processing Systems}, 2020.
-
-\bibitem{lin2015} W.-C. Lin, D.-Y. Xiao, J.-H. Chen, Y.-Y. Chang. A heuristic algorithm for the container retrieval problem. \textit{Transportation Research Part E: Logistics and Transportation Review}, 80:1--15, 2015.
-
-\bibitem{kim2016} K.-H. Kim, Y.-M. Park, B.-J. Park. A heuristic for the container retrieval problem with multiple cranes. \textit{International Journal of Production Research}, 54(14):4201--4215, 2016.
-
-\bibitem{lee2010} Y. Lee, Y.-J. Lee. A heuristic for the container retrieval problem. \textit{OR Spectrum}, 32(4):997--1027, 2010.
-
-\bibitem{forster2012} F. Forster, A. Bortfeldt. A tree search procedure for the container retrieval problem. \textit{Computers \& Operations Research}, 39(3):695--705, 2012.
-
-\bibitem{cifuentes2020} S. Cifuentes, M.-C. Riff. GRASP for the container retrieval problem. \textit{Expert Systems with Applications}, 145:113125, 2020.
-
-\bibitem{durasevic2025} M. Durasevic, D. Jakobovic, L. P. K. K. H. N. Genetic programming for the container retrieval problem. \textit{European Journal of Operational Research}, 2025.
-
-\bibitem{caserta2012} M. Caserta, S. Vo\ss, M. Sniedovich. Applying the corridor method to a blocks relocation problem. \textit{OR Spectrum}, 34(4):915--929, 2012.
-
-\bibitem{legato2001} P. Legato, R. M. Mazza. Berth planning and resources optimisation at a container terminal via discrete event simulation. \textit{European Journal of Operational Research}, 133(3):537--547, 2001.
-
-\bibitem{sammarra2007} M. Sammarra, G. Cordeau, F. Laporte, M. F. Monaco. A tabu search heuristic for the quay crane scheduling problem. \textit{Journal of Scheduling}, 10(4--5):327--336, 2007.
-
-\bibitem{zhang2002} C. Zhang, Y.-W. Wan, J. Liu, R. J. Linn. Dynamic crane deployment in container storage yards. \textit{Transportation Research Part B: Methodological}, 36(6):537--555, 2002.
-
-\bibitem{kool2019} W. Kool, H. van Hoof, M. Welling. Attention, Learn to Solve Routing Problems! In \textit{International Conference on Learning Representations}, 2019.
-
-\bibitem{bello2016} I. Bello, H. Pham, Q. V. Le, M. Norouzi, S. Bengio. Neural Combinatorial Optimization with Reinforcement Learning. \textit{arXiv preprint arXiv:1611.09940}, 2016.
-
+\bibitem{shin2026} W.-J. Shin et al. Learning to Retrieve Containers. \textit{Transportation Research Part C}, 2026.
+\bibitem{lin2015} W.-C. Lin et al. A heuristic algorithm for CRP. \textit{Transportation Research Part E}, 2015.
+\bibitem{kim2016} K.-H. Kim et al. A heuristic for CRP. \textit{IJPR}, 2016.
+\bibitem{lee2010} Y. Lee, Y.-J. Lee. A heuristic for CRP. \textit{OR Spectrum}, 2010.
+\bibitem{forster2012} F. Forster, A. Bortfeldt. TS for CRP. \textit{Computers \& OR}, 2012.
+\bibitem{cifuentes2020} S. Cifuentes, M.-C. Riff. GRASP for CRP. \textit{Expert Systems with Applications}, 2020.
+\bibitem{durasevic2025} M. Durasevic et al. GP for CRP. \textit{EJOR}, 2025.
+\bibitem{kwon2020} Y. Kwon et al. POMO. \textit{NeurIPS}, 2020.
+\bibitem{stahlbock2008} R. Stahlbock, S. Vo\ss. OR at container terminals. \textit{OR Spectrum}, 2008.
+\bibitem{kool2019} W. Kool et al. Attention, Learn to Solve Routing Problems! \textit{ICLR}, 2019.
+\bibitem{legato2001} P. Legato, R. M. Mazza. Berth planning. \textit{EJOR}, 2001.
+\bibitem{sammarra2007} M. Sammarra et al. Quay crane scheduling. \textit{Journal of Scheduling}, 2007.
+\bibitem{zhang2002} C. Zhang et al. Dynamic crane deployment. \textit{Transportation Research Part B}, 2002.
+\bibitem{vaswani2017} A. Vaswani et al. Attention Is All You Need. \textit{NeurIPS}, 2017.
+\bibitem{williams1992} R. J. Williams. REINFORCE. \textit{Machine Learning}, 1992.
 \end{thebibliography}
-
 \end{document}
