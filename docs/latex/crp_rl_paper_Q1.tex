@@ -310,6 +310,17 @@ On small yards (1--4 bays, Fig.~\ref{fig:scale}), all strategies perform similar
     \label{fig:scale}
 \end{figure}
 
+\subsection{Interference Analysis}
+Figure~\ref{fig:intf} (left) visualizes the stark contrast in interference events across strategies. S1 and S3 incur 106--147 interference events per instance (C=2 and C=3, respectively), while S2 reduces this to near-zero (0.5--0.7) and S4 eliminates it entirely (0.0). This confirms that spatial awareness is the primary determinant of coordination quality, not task balancing.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.48\textwidth]{../../results/figures/fig4_interference.png}
+    \includegraphics[width=0.48\textwidth]{../../results/figures/fig6_win_rate.png}
+    \caption{Left: Mean interference events per instance. Right: Win rate per strategy (proportion of instances where each strategy achieves the lowest gap).}
+    \label{fig:intf}
+\end{figure}
+
 \subsection{Statistical Validation}
 Wilcoxon signed-rank tests (Table~\ref{tab:wilcoxon}) confirm that S2 and S4 significantly outperform S1 and S3 (all $p<0.001$). S2 and S4 are not significantly different ($p>0.1$). Backward compatibility is verified across 5 diverse instances: average 1.32\% cost difference (max 1.95\%) between ZeroShot (C=1) and the original model.
 
@@ -352,7 +363,65 @@ Our study has three principal limitations. First, the \textbf{sequential simulat
 This paper presents the first formalization, lower bound, and empirical evaluation of zero-shot single-to-multi-crane transfer for CRP. ZoneSplit achieves gaps of 10.46\% (C=2) and 10.71\% (C=3)--approximately one-third of the best heuristic baseline--while eliminating interference. Our results demonstrate that single-crane DRL investments can be extended to multi-crane operations at zero additional training cost.
 
 \section*{Data Availability}
-Code, benchmarks (140 instances), and results: \url{https://github.com/sutobode/Master}.
+Code, benchmarks (140 instances), and all experimental results: \url{https://github.com/sutobode/Master}.
+
+\appendix
+\section{Supplementary Results}
+
+\subsection{Gap by Number of Bays}
+Figure~\ref{fig:bays} reveals that gaps increase with yard complexity up to 6 bays, then stabilize. Spatial strategies (S2, S4) maintain a consistent 1--2 percentage point advantage over non-spatial strategies (S1, S3) across all multi-bay configurations.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.70\textwidth]{../../results/figures/fig3_gap_by_bays.png}
+    \caption{Gap(LB\textsubscript{MCRP})\% as a function of the number of bays. The advantage of spatial strategies grows with yard complexity.}
+    \label{fig:bays}
+\end{figure}
+
+\subsection{Speedup Analysis}
+The speedup from C=2 to C=3 averages 1.01$\times$ across all strategies (Table~\ref{tab:speedup}, Fig.~\ref{fig:speedup}), confirming the sequential simulation limitation discussed in Section~\ref{sec:discussion}. All strategies exhibit similar speedups, confirming that this limitation is architecture-independent. A parallel simulation is expected to yield speedups approaching 1.5$\times$.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.60\textwidth]{../../results/figures/fig5_speedup.png}
+    \caption{Speedup from 2 to 3 cranes. The dashed line at 1.5$\times$ represents the idealized parallel speedup.}
+    \label{fig:speedup}
+\end{figure}
+
+\begin{table}[h!]
+    \centering
+    \caption{Speedup from C=2 to C=3 (ratio of total costs).}
+    \label{tab:speedup}
+    \begin{tabularx}{\textwidth}{lcccc}
+        \toprule
+        Strategy & S1 & S2 & S3 & S4 \\
+        \midrule
+        Speedup & $1.014\pm0.013$ & $1.013\pm0.014$ & $1.014\pm0.013$ & $1.013\pm0.012$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Backward Compatibility Details}
+Table~\ref{tab:backward} provides the detailed backward compatibility verification across five diverse instances, confirming that the ZeroShot policy extraction introduces negligible error (average 1.32\%, max 1.95\%).
+
+\begin{table}[h!]
+    \centering
+    \caption{Backward compatibility: ZeroShot(C=1) vs original model.}
+    \label{tab:backward}
+    \begin{tabularx}{\textwidth}{lcccc}
+        \toprule
+        Instance & Bays & Containers & Original Cost & ZeroShot Cost & Diff(\%) \\
+        \midrule
+        R011606\_001 & 1 & 70 & 4,807.2 & 4,713.6 & 1.95 \\
+        R011606\_003 & 1 & 70 & 4,872.0 & 4,793.0 & 1.63 \\
+        R021606\_001 & 2 & 140 & 13,067.0 & 12,935.4 & 1.01 \\
+        R041606\_001 & 4 & 280 & 31,252.0 & 31,061.0 & 0.61 \\
+        R061606\_001 & 6 & 430 & 49,421.0 & 48,736.0 & 1.39 \\
+        \midrule
+        Average & --- & --- & --- & --- & \textbf{1.32} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 
 \bibliographystyle{elsarticle-num}
 \begin{thebibliography}{99}
