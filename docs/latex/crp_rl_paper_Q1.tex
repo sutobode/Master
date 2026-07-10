@@ -1,4 +1,5 @@
 \documentclass[11pt,a4paper]{elsarticle}
+\usepackage[T1]{fontenc}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx,booktabs,tabularx,longtable}
 \usepackage{algorithm,algpseudocode}
@@ -23,8 +24,8 @@
 \address[inst]{University, Country}
 
 \begin{abstract}
-Container terminals operate multiple yard cranes per block, yet the Container Retrieval Problem (CRP)---a core operational optimization challenge---has been studied almost exclusively as a single-crane problem. This paper presents a formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP), in which the primary objective is the makespan of a non-interfering multi-crane schedule. We derive provably valid lower bounds on both total working time and makespan (Theorem~\ref{thm:lb}), and investigate whether a Deep Reinforcement Learning (DRL) policy trained solely on single-crane instances can be transferred zero-shot to multi-crane environments via heuristic crane assignment strategies. The extraction of the frozen policy is exact: at $C=1$ the transferred pipeline reproduces the original model's solutions to within $0.00\%$. On 70 multi-crane layouts derived from the standard Lee benchmark, the ZoneSplit assignment strategy achieves a mean makespan gap of %%FILL_ZS_S2_GAPM_C2
-\% at $C=2$ against the proposed lower bound, and reduces interference waiting time by over %%FILL_INTF_RED
+Container terminals operate multiple yard cranes per block, yet the Container Retrieval Problem (CRP)---a core operational optimization challenge---has been studied almost exclusively as a single-crane problem. This paper presents a formal definition and empirical analysis of the Multi-Crane Container Retrieval Problem (M-CRP), in which the primary objective is the makespan of a non-interfering multi-crane schedule. We derive provably valid lower bounds on both total working time and makespan (Theorem~\ref{thm:lb}), and investigate whether a Deep Reinforcement Learning (DRL) policy trained solely on single-crane instances can be transferred zero-shot to multi-crane environments via heuristic crane assignment strategies. The extraction of the frozen policy is exact: at $C=1$ the transferred pipeline reproduces the original model's solutions to within $0.00\%$. On 70 multi-crane layouts derived from the standard Lee benchmark, the ZoneSplit assignment strategy achieves a mean makespan gap of FILLME--ZS-S2-GAPM-C2
+\% at $C=2$ against the proposed lower bound, and reduces interference waiting time by over FILLME--INTF-RED
 \% compared to spatially unaware assignment. Against multi-crane extensions of published heuristics evaluated under the identical protocol, the transferred DRL policy attains substantially lower gaps on both objectives. All code, benchmarks, and results are publicly released.
 \end{abstract}
 
@@ -99,7 +100,7 @@ where $T_c$ is the completion time of crane $c$, subject to:
 and A1--A5 of~\cite{shin2026} unchanged. The \emph{total working time} $W = \sum_{c} W_c$, with $W_c$ the busy time of crane $c$, is reported as a secondary objective.
 \end{definition}
 
-The makespan is the quantity that multi-crane operation improves: total work $W$ cannot decrease by adding cranes (every retrieval and relocation must still be performed), whereas the makespan can approach $W/C$ under perfect parallelization.
+The makespan $M^\ast$ (Eq.~\ref{eq:mcrp}) is the quantity that multi-crane operation improves: total work $W$ cannot decrease by adding cranes (every retrieval and relocation must still be performed), whereas the makespan can approach $W/C$ under perfect parallelization.
 
 \begin{theorem}[Complexity]
 \label{thm:np}
@@ -131,7 +132,7 @@ Assume $t_{\text{pd}} \ge (R-2)\,t_{\text{row}}$ (satisfied by the standard para
     \;+\; \max(0,\, B_{\text{occ}} - C)\,(t_{\text{acc}} + t_{\text{bay}}), \label{eq:lbwork}\\
     M^\ast \;\ge\; \LB_{\text{makespan}} \;&=\; \max\Big( \tfrac{\LB_{\text{work}}}{C},\; \max_{b} \textstyle\sum_{i \notin \mathcal{M},\, \text{bay}(i)=b} \big( t_{\text{row}}\, r_i + t_{\text{pd}} \big) \Big). \label{eq:lbmakespan}
 \end{align}
-At $C=1$ both bounds reduce to quantities dominated by the single-crane bound of~\cite{shin2026}, which we use instead.
+The work bound (Eq.~\ref{eq:lbwork}) and the makespan bound (Eq.~\ref{eq:lbmakespan}) are used respectively as the denominator of the secondary and primary gap metrics in Section~\ref{sec:results}. At $C=1$ both bounds reduce to quantities dominated by the single-crane bound of~\cite{shin2026}, which we use instead.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
@@ -252,9 +253,9 @@ All experiments execute on a standard laptop CPU (no GPU). The pretrained weight
 \subsection{Experiment 1: Single-Crane Comparison}
 \label{sec:exp1}
 
-Table~\ref{tab:single} reports results on the 70 standard Lee instances. The original DRL model achieves a mean gap of %%FILL_OM_GAP
-\% (R-type: %%FILL_OM_R
-\%, consistent with the 7.8\% reported in~\cite{shin2026}), roughly one-third of the strongest heuristic's gap (Lin2015: %%FILL_LIN_GAP
+Table~\ref{tab:single} reports results on the 70 standard Lee instances. The original DRL model achieves a mean gap of FILLME--OM-GAP
+\% (R-type: FILLME--OM-R
+\%, consistent with the 7.8\% reported in~\cite{shin2026}), roughly one-third of the strongest heuristic's gap (Lin2015: FILLME--LIN-GAP
 \%). The extracted ZeroShot policy reproduces these values exactly at $C=1$; the extraction loses nothing. Heuristic performance degrades with yard scale, while the DRL policy remains stable across scales.
 
 \begin{table}[h!]
@@ -265,15 +266,15 @@ Table~\ref{tab:single} reports results on the 70 standard Lee instances. The ori
         \toprule
         Method & Mean Gap(\%) & Std(\%) & Min(\%) & Max(\%) \\
         \midrule
-        \textbf{Original Model~\cite{shin2026} $\equiv$ ZeroShot($C{=}1$)} & \textbf{%%FILL_TAB1_OM}
+        \textbf{Original Model~\cite{shin2026} $\equiv$ ZeroShot($C{=}1$)} & \textbf{FILLME--TAB1-OM}
  & & & \\
-        Lin2015~\cite{lin2015} & %%FILL_TAB1_LIN
+        Lin2015~\cite{lin2015} & FILLME--TAB1-LIN
  & & & \\
-        Leveling~\cite{zehendner2017} & %%FILL_TAB1_LEV
+        Leveling~\cite{zehendner2017} & FILLME--TAB1-LEV
  & & & \\
-        Kim2016~\cite{kim2016} & %%FILL_TAB1_KIM
+        Kim2016~\cite{kim2016} & FILLME--TAB1-KIM
  & & & \\
-        Durasevic2025~\cite{durasevic2025} & %%FILL_TAB1_DUR
+        Durasevic2025~\cite{durasevic2025} & FILLME--TAB1-DUR
  & & & \\
         \bottomrule
     \end{tabularx}
@@ -281,24 +282,24 @@ Table~\ref{tab:single} reports results on the 70 standard Lee instances. The ori
 
 \subsection{Experiment 2: Multi-Crane Strategy Comparison}
 
-%%FILL_EXP2_TEXT_AND_TABLE
+FILLME--EXP2-TEXT-AND-TABLE
 
 \subsection{Experiment 3: Multi-Crane Baseline Comparison}
 
-%%FILL_EXP3_TEXT_AND_TABLE
+FILLME--EXP3-TEXT-AND-TABLE
 
 \subsection{Statistical Analysis, Interference, and Speedup}
 
-%%FILL_STATS_TEXT_AND_TABLE
+FILLME--STATS-TEXT-AND-TABLE
 
 \section{Discussion}
 \label{sec:discussion}
 
-%%FILL_DISCUSSION (rewrite after numbers: why transfer works, recommendation, limitations incl. timing-model simplifications, LB looseness for makespan, zero-shot-only)
+FILLME--DISCUSSION (rewrite after numbers: why transfer works, recommendation, limitations incl. timing-model simplifications, LB looseness for makespan, zero-shot-only)
 
 \section{Conclusion}
 
-%%FILL_CONCLUSION
+FILLME--CONCLUSION
 
 \section*{Data Availability}
 Code, benchmarks (70 M-CRP layouts), and experimental results: \url{https://github.com/sutobode/Master}.
@@ -311,7 +312,7 @@ Code, benchmarks (70 M-CRP layouts), and experimental results: \url{https://gith
 \bibitem{kim2016} Y. Kim, T. Kim, H. Lee, Heuristic algorithm for retrieving containers, Computers \& Industrial Engineering 101 (2016) 352--360.
 \bibitem{forster2012} F. Forster, A. Bortfeldt, A tree search procedure for the container relocation problem, Computers \& Operations Research 39 (2) (2012) 299--309.
 \bibitem{cifuentes2020} C. D. Cifuentes, M.-C. Riff, G-CREM: A GRASP approach to solve the container relocation problem for multibays, Applied Soft Computing 97 (2020) 106721.
-\bibitem{durasevic2025} M. {\Dj}urasevi{\'c}, M. {\Dj}umi{\'c}, F. J. G. Gala, Multitask genetic programming for automated design of heuristics for the container relocation problem, Engineering Applications of Artificial Intelligence 144 (2025) 110001.
+\bibitem{durasevic2025} M. {\DJ}urasevi{\'c}, M. {\DJ}umi{\'c}, F. J. G. Gala, Multitask genetic programming for automated design of heuristics for the container relocation problem, Engineering Applications of Artificial Intelligence 144 (2025) 110001.
 \bibitem{zehendner2017} E. Zehendner, D. Feillet, P. Jaillet, An algorithm with performance guarantee for the online container relocation problem, European Journal of Operational Research 259 (1) (2017) 48--62.
 \bibitem{caserta2012} M. Caserta, S. Schwarze, S. Vo{\ss}, A mathematical formulation and complexity considerations for the blocks relocation problem, European Journal of Operational Research 219 (1) (2012) 96--104.
 \bibitem{shinkim2025} W.-J. Shin, H.-J. Kim, Advances in multi-crane scheduling: extended non-interference modeling and temporal-constraint-based valid inequalities, European Journal of Operational Research (2025). doi:10.1016/j.ejor.2025.10.032.
