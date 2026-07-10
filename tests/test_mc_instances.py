@@ -1,6 +1,6 @@
 import sys, os, glob
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from benchmarks.generate_mc_instances import generate_all, crane_start_bays
+from benchmarks.generate_mc_instances import generate_all, generate_large, crane_start_bays, SCALES
 
 # generate_all() is DESTRUCTIVE (deletes every .txt under its output_dir
 # before writing) — every test here must pass tmp_path, never the real
@@ -31,6 +31,21 @@ def test_files_have_crane_start_metadata(tmp_path):
             head = [fh.readline(), fh.readline()]
         assert head[0].startswith('# crane_start_bays_c2 = ')
         assert head[1].startswith('# crane_start_bays_c3 = ')
+
+
+def test_large_scale_is_wired_to_shin_instances(tmp_path):
+    """Regression test for the bug where SCALES['large'] (bays 20/30) pointed
+    at Lee_instances (max 10 bays), so it silently yielded 0 files via the
+    FileNotFoundError/continue in _iter_layouts. 'large' must resolve to
+    Shin_instances and actually produce files."""
+    assert SCALES['large']['dir'].endswith('Shin_instances')
+    out_dir = str(tmp_path)
+    count = generate_large(output_dir=out_dir)
+    assert count > 0, "SCALES['large'] yielded 0 files — check its 'dir'"
+    files = glob.glob(f'{out_dir}/*.txt')
+    # filename: mc_{R|U}{bay:02d}{row:02d}{tier:02d}_{idx:03d}.txt
+    bays = {int(os.path.basename(f)[4:6]) for f in files}
+    assert bays == {20, 30}, f'expected only 20/30-bay layouts, got bays={bays}'
 
 
 def test_crane_start_bays_ordering():
