@@ -116,4 +116,10 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: only ran Lin2015 as a baseline (3 of 6 methods). Use '
+        '`python -m analysis.run_single_crane_full --dataset shin` instead '
+        '(same 6 methods as the Lee-scale run, in one consistent table) -- '
+        'see README.md.'
+    )
     main()

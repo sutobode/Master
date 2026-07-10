@@ -129,4 +129,10 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: only covers benchmarks/Lee_instances -- diverges from '
+        'run_single_crane_large.py\'s method set. Use '
+        '`python -m analysis.run_single_crane_full --dataset lee` instead '
+        '(same 6 methods on both Lee and Shin scales) -- see README.md.'
+    )
     main()

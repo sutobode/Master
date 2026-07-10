@@ -173,4 +173,13 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: ZeroShot only, no heuristic baselines -- superseded by '
+        'analysis/run_multi_crane_full.py\'s full method x strategy matrix. '
+        'That script is NOT yet batched/resumable; if a large --dataset large '
+        'run needs to survive interruption, ask for a resumable version of '
+        'run_multi_crane_full.py rather than using this file, whose output '
+        'schema no longer matches (missing the ZeroShot/M-Lin2015/M-Kim2016/'
+        'M-Leveling method column).'
+    )
     main()

@@ -97,4 +97,9 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: only S1/S2, ZeroShot only, no heuristic baselines. '
+        'Use `python -m analysis.run_multi_crane_full --dataset large` instead '
+        '(full 4-method x 4-strategy matrix) -- see README.md.'
+    )
     main()

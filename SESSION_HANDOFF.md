@@ -1,8 +1,9 @@
 # SESSION HANDOFF: M-CRP Zero-shot Transfer
 
-> ⚠️ **10/07/2026 — Đang trong quá trình sửa lỗi lớn phát hiện qua ultra-review (Theorem 3 sai, cost-model bug, dataset double-count...).**
+> ⚠️ **10/07/2026 — Đang trong quá trình sửa lỗi lớn phát hiện qua ultra-review (Theorem 3 sai, cost-model bug, dataset double-count...) + gộp lại script thực nghiệm.**
 > **Mọi số liệu/claims trong phần dưới đây (8.x.2026) hiện KHÔNG còn đúng** — paper và code đã thay đổi đáng kể, thí nghiệm cần chạy lại.
-> Đọc `docs/superpowers/plans/2026-07-10-revision-handoff.md` TRƯỚC — đó là bàn giao mới nhất, có đầy đủ danh sách thay đổi + lệnh chạy lại.
+> **Đọc `docs/superpowers/plans/2026-07-10-script-consolidation-handoff.md` TRƯỚC TIÊN** — đây là bàn giao mới nhất, có lệnh chạy lại đúng với code hiện tại (`analysis/run_single_crane_full.py`, `analysis/run_multi_crane_full.py`, `run_all.py`), trạng thái dataset hiện tại, và bằng chứng verify thật (44/45 unit test pass, smoke test trên dữ liệu nhỏ đã chạy và pass).
+> `docs/superpowers/plans/2026-07-10-revision-handoff.md` vẫn hữu ích để hiểu LÝ DO sửa cost-model/lower-bound (Phase A/B) nhưng lệnh chạy ở cuối file đó đã lỗi thời — dùng file consolidation-handoff ở trên.
 > Nội dung gốc bên dưới giữ nguyên làm tham chiếu lịch sử (kết quả cũ đã submit-ready trước khi phát hiện lỗi).
 
 > **Cập nhật lần cuối:** 08/07/2026  

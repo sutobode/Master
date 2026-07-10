@@ -1,5 +1,7 @@
 # Revision Handoff — 2026-07-10
 
+> ⚠️ **Đọc `2026-07-10-script-consolidation-handoff.md` TRƯỚC file này nếu bạn cần biết cách chạy lại thực nghiệm ngay bây giờ.** Phần "Cách tự chạy lại" ở cuối file này (script `run_single_crane_v2.py`/`run_mc_baselines_v2.py`/...) đã LỖI THỜI — các script đó đã được gộp lại thành `analysis/run_single_crane_full.py` + `analysis/run_multi_crane_full.py` + `run_all.py` sau khi user chỉ ra 5 script cũ scatter/không nhất quán method set giữa các scale. Nội dung bên dưới vẫn đúng cho phần **giải thích lý do sửa cost-model/lower-bound/dataset** (Phase A/B) — chỉ có phần lệnh chạy ở cuối là cũ.
+
 > Bàn giao sau phiên ultra-review + bắt đầu sửa paper `crp_rl_paper_Q1.tex`. User đã yêu cầu dừng mọi tiến trình nền và tự chạy tiếp — tài liệu này ghi lại chính xác đã sửa gì, tại sao, và cách chạy lại để lấy số liệu.
 
 **Full audit trace (findings gốc từ paper-audit + 3 reviewer agent):** `C:\Users\X1\.claude\plans\vectorized-inventing-plum.md` — đọc file này trước nếu cần hiểu lý do đằng sau mỗi thay đổi bên dưới.

@@ -1,3 +1,13 @@
+"""ZeroShot-only multi-crane sweep (no heuristic baselines) -- kept for
+`--quick` smoke-testing (see CLAUDE.md) and as the import source for
+parse_instance_file/load_instance_tensor/verify_backward_compatibility,
+reused by analysis/run_multi_crane_full.py. For the full method x strategy
+comparison (ZeroShot + M-Lin2015/M-Kim2016/M-Leveling, all 4 strategies, both
+crane counts, in ONE csv), use:
+    python -m analysis.run_multi_crane_full --dataset small
+    python -m analysis.run_multi_crane_full --dataset large
+"""
+
 import os, sys, time, glob, argparse
 from datetime import datetime
 import torch

@@ -97,4 +97,10 @@ def main():
 
 
 if __name__ == '__main__':
+    sys.exit(
+        'DEPRECATED: writes a separate CSV from the ZeroShot rows (experiment.py), '
+        'requiring a manual join. Use `python -m analysis.run_multi_crane_full '
+        '--dataset small` instead (ZeroShot + all 3 heuristics x all 4 strategies '
+        'in ONE csv) -- see README.md.'
+    )
     main()

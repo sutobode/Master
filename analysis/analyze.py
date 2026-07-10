@@ -7,8 +7,13 @@ Metric schema (v2, post-revision):
 
 Usage:
     from analysis.analyze import MCRPAnalyzer
-    a = MCRPAnalyzer('results/mcrp_experiment_v2_main.csv')
+    a = MCRPAnalyzer('results/multi_crane_small.csv')
     a.run_all()
+
+If the CSV's `method` column has more than one value (as
+analysis/run_multi_crane_full.py's does: ZeroShot + 3 heuristic baselines),
+Tables 1-7 (strategy comparison) are computed on ZeroShot rows only, and
+Table 8 (method comparison) is added, computed on the full unfiltered data.
 """
 
 import os, sys, glob, warnings
@@ -25,13 +30,31 @@ GAP_COLS = ['gap_makespan', 'gap_work']
 
 class MCRPAnalyzer:
     def __init__(self, csv_path):
-        self.df = pd.read_csv(csv_path)
-        self.df['interference'] = pd.to_numeric(self.df['interference'], errors='coerce').fillna(0)
-        self.gap_cols = [c for c in GAP_COLS if c in self.df.columns and self.df[c].notna().any()]
+        full_df = pd.read_csv(csv_path)
+        full_df['interference'] = pd.to_numeric(full_df['interference'], errors='coerce').fillna(0)
+        self.full_df = full_df
+
+        self.gap_cols = [c for c in GAP_COLS if c in full_df.columns and full_df[c].notna().any()]
         self.primary = self.gap_cols[0] if self.gap_cols else 'gap_work'
+
+        # analysis/run_multi_crane_full.py's CSV mixes ZeroShot (proposed) with
+        # 3 heuristic baselines in one file (method column). Tables 1-7 below
+        # answer "which STRATEGY is best" and must only look at ZeroShot rows,
+        # else groupby(['n_cranes','strategy']) silently averages DRL and
+        # heuristic costs together into a meaningless blended number. The
+        # cross-method comparison (does ZeroShot beat the heuristics) is its
+        # own table (table8_method_comparison), computed on the unfiltered
+        # self.full_df.
+        self.has_baselines = 'method' in full_df.columns and full_df['method'].nunique() > 1
+        self.df = full_df[full_df['method'] == 'ZeroShot'].copy() if self.has_baselines else full_df
+
         self._add_scale_column()
         self._add_bay_column()
         self._add_type_column()
+        if self.has_baselines:
+            self._add_scale_column(self.full_df)
+            self._add_bay_column(self.full_df)
+            self._add_type_column(self.full_df)
 
     def _dims(self, name):
         parts = str(name).replace('.txt', '').split('_')
@@ -39,7 +62,9 @@ class MCRPAnalyzer:
             return None
         return parts[1]
 
-    def _add_scale_column(self):
+    def _add_scale_column(self, df=None):
+        df = self.df if df is None else df
+
         def get_scale(name):
             d = self._dims(name)
             if d is None:
@@ -49,19 +74,22 @@ class MCRPAnalyzer:
             except ValueError:
                 return 'unknown'
             return 'small' if n_bays <= 4 else ('medium' if n_bays <= 10 else 'large')
-        self.df['scale'] = self.df['instance'].apply(get_scale)
+        df['scale'] = df['instance'].apply(get_scale)
 
-    def _add_bay_column(self):
+    def _add_bay_column(self, df=None):
+        df = self.df if df is None else df
+
         def get_bays(name):
             d = self._dims(name)
             try:
                 return int(d[1:3]) if d else -1
             except ValueError:
                 return -1
-        self.df['n_bays'] = self.df['instance'].apply(get_bays)
+        df['n_bays'] = df['instance'].apply(get_bays)
 
-    def _add_type_column(self):
-        self.df['inst_type'] = self.df['instance'].apply(
+    def _add_type_column(self, df=None):
+        df = self.df if df is None else df
+        df['inst_type'] = df['instance'].apply(
             lambda n: 'R' if str(n).startswith('mc_R') else ('U' if str(n).startswith('mc_U') else '?')
         )
 
@@ -142,6 +170,19 @@ class MCRPAnalyzer:
         gap_col = gap_col or self.primary
         return self.df.groupby(['inst_type', 'n_cranes', 'strategy'])[gap_col].agg(['mean', 'std', 'count'])
 
+    def table8_method_comparison(self, gap_col=None):
+        """ZeroShot vs the 3 heuristic baselines (analysis/run_multi_crane_full.py's
+        'method' column) -- headline (strategy=S2 only) and full method x strategy
+        matrix. Returns (empty, empty) if the CSV has no baseline rows (has_baselines
+        is False), e.g. when fed an old ZeroShot-only CSV."""
+        if not self.has_baselines:
+            return pd.DataFrame(), pd.DataFrame()
+        gap_col = gap_col or self.primary
+        s2 = self.full_df[self.full_df['strategy'] == 'S2']
+        headline = s2.groupby(['n_cranes', 'method'])[gap_col].agg(['mean', 'std'])
+        full_matrix = self.full_df.groupby(['n_cranes', 'method', 'strategy'])[gap_col].mean().unstack()
+        return headline, full_matrix
+
     def identify_failure_modes(self, threshold_gap=20.0, gap_col=None):
         gap_col = gap_col or self.primary
         failures = self.df[self.df[gap_col] > threshold_gap]
@@ -203,6 +244,13 @@ class MCRPAnalyzer:
         lines.append('\n\n--- Table 7: Gap by Instance Type (R/U) ---')
         lines.append(self.table7_gap_by_type().to_string())
 
+        if self.has_baselines:
+            headline, full_matrix = self.table8_method_comparison()
+            lines.append('\n\n--- Table 8a: Method Comparison, headline (strategy=S2 only) ---')
+            lines.append(headline.to_string())
+            lines.append('\n\n--- Table 8b: Method Comparison, full method x strategy matrix ---')
+            lines.append(full_matrix.to_string())
+
         sp = self.compute_speedup()
         lines.append('\n\n--- Makespan Speedup: C=2 -> C=3 ---')
         lines.append(sp.to_string() if len(sp) > 0 else '  (makespan not available)')
@@ -261,7 +309,7 @@ class MCRPAnalyzer:
 
 
 def find_latest_csv():
-    files = sorted(glob.glob('results/mcrp_experiment_*.csv'), key=os.path.getmtime)
+    files = sorted(glob.glob('results/multi_crane_*.csv'), key=os.path.getmtime)
     return files[-1] if files else None
 
 
@@ -269,7 +317,7 @@ if __name__ == '__main__':
     csv_path = sys.argv[1] if len(sys.argv) > 1 else find_latest_csv()
     if csv_path is None:
         print('No experiment CSV found in results/')
-        print('Run: python experiment.py --cranes 2 3 --strategies S1 S2 S3 S4')
+        print('Run: python -m analysis.run_multi_crane_full --dataset small')
         sys.exit(1)
     print(f'Analyzing: {csv_path}')
     a = MCRPAnalyzer(csv_path)

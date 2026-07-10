@@ -9,11 +9,15 @@ Research codebase for **"Zero-shot Transfer of Single-Crane Deep RL Policies for
 1. **Original single-crane CRP model** (`model/`, `env/`, `trainer.py`, `main.py`) — a POMO-style attention encoder/decoder trained via RL to solve the single-crane Container Retrieval Problem (Shin et al. 2026). This is treated as a frozen, pretrained artifact (`baselines/models/proposed/epoch(100).pt`), not something actively retrained.
 2. **This project's contribution**: M-CRP (multi-crane) extension that extracts the frozen encoder+scorer from that model (`policy/zero_shot.py`) and drives it through a new multi-crane environment (`mcenv/`) using pluggable crane-assignment strategies (`strategies/`), without any retraining ("zero-shot transfer").
 
-Read `README.md` for exact commands to reproduce every result, and `SESSION_HANDOFF.md` + `docs/superpowers/plans/2026-07-10-revision-handoff.md` (Vietnamese) for experiment status — the latter is the most recent and authoritative account of what changed and why; `SESSION_HANDOFF.md`'s pre-2026-07-10 content is historical only (numbers there predate a lower-bound/cost-model rewrite and are no longer valid).
+Read `README.md` for exact commands to reproduce every result, and `docs/superpowers/plans/2026-07-10-script-consolidation-handoff.md` (Vietnamese) for experiment status — this is the most recent and authoritative account of what changed and why, including real-run verification evidence and current dataset state. `docs/superpowers/plans/2026-07-10-revision-handoff.md` explains the earlier cost-model/lower-bound rewrite (still accurate for that part, but its own run commands are superseded). `SESSION_HANDOFF.md`'s pre-2026-07-10 content is historical only (numbers there predate the lower-bound/cost-model rewrite and are no longer valid).
 
 ## Commands
 
 ```bash
+python run_all.py --dry-run                  # master pipeline: prints every step below in order, runs nothing
+python run_all.py --skip-shin --skip-multi-large   # small-scale-only pass (fast, verify pipeline works)
+python run_all.py --regenerate-mc            # FULL pipeline: every dataset, every method, no instance caps (see --help)
+
 pip install -r requirements.txt              # note: file has duplicate/pinned versions; install what's needed for your platform (CPU vs CUDA torch)
 
 python -m pytest tests/ -v                    # full suite
@@ -26,18 +30,18 @@ python -m benchmarks.generate_mc_instances     # (re)generate M-CRP layouts -> b
                                                 # files in that directory first; back up before running
                                                 # if you have hand-curated instances there.
 
-python -m analysis.run_single_crane_v2         # Experiment 1: single-crane, original model + 4 heuristics
-python experiment.py --quick                   # smoke test: 3 instances x 2 cranes x 2 strategies (~5-10s)
-python experiment.py --cranes 2 3 --strategies S1 S2 S3 S4 --output results/mcrp_experiment_v2_main.csv
-                                                # Experiment 2: 4 strategies x all layouts x C in {2,3}
-python -m analysis.run_mc_baselines_v2         # Experiment 3: M-Lin2015/M-Kim2016/M-Leveling vs ZeroShot+S2
-python run_full_experiment.py --batch_size 15  # same as Experiment 2 but batched + resumable
+python -m analysis.run_single_crane_full --dataset lee              # Setting A (C=1), small scale: OriginalModel+ZeroShot+4 heuristics, 70 instances
+python -m analysis.run_single_crane_full --dataset shin --max_per_scale 3   # Setting A, large scale (Shin_instances): SAME 6 methods
+python experiment.py --quick                                        # smoke test only: 3 instances x 2 cranes x 2 strategies (~5-10s), ZeroShot only
+python -m analysis.run_multi_crane_full --dataset small --max_instances 3   # smoke test, Setting B (C=2,3): ZeroShot+3 multi-crane heuristics x 4 strategies
+python -m analysis.run_multi_crane_full --dataset small              # full run: 70 layouts x 2 crane-counts x 4 strategies x 4 methods = 2,240 runs
+python -m analysis.run_multi_crane_full --dataset large --max_instances 3  # Setting B, large scale (lee_mc_large/, generate first — see below)
 
-python -m analysis.analyze results/mcrp_experiment_v2_main.csv   # statistical report -> results/analysis_report.txt
+python -m analysis.analyze results/multi_crane_small.csv   # statistical report -> results/analysis_report.txt
 python -m analysis.visualize_v2                                  # figures -> results/figures_v2/
 ```
 
-`compare_mc_baselines.py`, `analysis/run_comprehensive.py`, `analysis/supplementary_analysis.py`, `analysis/fix_critical_issues.py`, `analysis/run_mc_baselines_extra.py`, and `analysis/visualize.py` are **deprecated** (pre-2026-07-10 lower-bound/cost-model rewrite; running them now prints a message and exits) — use the `_v2` scripts / `experiment.py` above instead. `compare_all.py` still works (it doesn't touch the changed `compute_lb_mc`/`parse_instance_file` APIs) but only exercises 2 small configs; prefer `analysis/run_single_crane_v2.py` for the full 70-instance comparison. See `README.md` for the full per-dataset, per-baseline experiment matrix.
+`compare_mc_baselines.py`, `analysis/run_comprehensive.py`, `analysis/supplementary_analysis.py`, `analysis/fix_critical_issues.py`, `analysis/run_mc_baselines_extra.py`, `analysis/visualize.py`, `run_full_experiment.py`, `analysis/run_single_crane_v2.py`, `analysis/run_single_crane_large.py`, `analysis/run_mc_baselines_v2.py`, and `analysis/run_mc_large.py` are **deprecated** (the last four superseded by `run_single_crane_full.py`/`run_multi_crane_full.py`, which unify what those scripts split across incompatible method sets and separate un-joined CSVs — see README.md §4 for why); running any of them now prints a message and exits. `compare_all.py` still works (it doesn't touch the changed `compute_lb_mc`/`parse_instance_file` APIs) but only exercises 2 small configs; prefer `analysis/run_single_crane_full.py` for the full 70-instance comparison. `experiment.py` itself is still imported (not deprecated) for `parse_instance_file`/`load_instance_tensor`/`verify_backward_compatibility`, and its `--quick` CLI remains valid for smoke-testing — but its full-sweep output (ZeroShot only, no baselines) is superseded by `run_multi_crane_full.py` for actual paper numbers. See `README.md` for the full per-dataset, per-baseline experiment matrix.
 
 Everything under `results/` is generated/gitignored output — never hand-edit it, only regenerate via the scripts above.
 
@@ -90,22 +94,24 @@ bounds/lowerbound_mc.py   compute_lb_mc() returns {'work': tensor, 'makespan': t
                          the "fixed" per-container term's validity proof depends on. At C=1 both bounds
                          collapse to baselines/lowerbound.py's single-crane Theorem-2 bound.
         |
-experiment.py /            Orchestrate the full sweep over instances x n_cranes x strategies, verify
-run_full_experiment.py     backward-compatibility (C=1 zero-shot must match the original model's cost
-                         EXACTLY, tolerance 0.01%) before each run, assert gap_work/gap_makespan >= 0 for
-                         every run (a violation means the lower bound itself is wrong — investigate,
-                         don't silence), and write one row per (instance, n_cranes, strategy) to a CSV
-                         with columns total_cost/makespan/gap_work/gap_makespan/interference_wait/
-                         a7_reassignments/a7_violations.
+analysis/run_multi_crane_full.py   Orchestrates the full sweep over instances x n_cranes x strategies x
+                         {ZeroShot, M-Lin2015, M-Kim2016, M-Leveling} for a chosen `--dataset {small,large}`,
+                         verifies backward-compatibility (C=1 zero-shot must match the original model's cost
+                         EXACTLY, tolerance 0.01%, via experiment.py's verify_backward_compatibility) before
+                         each run, asserts gap_work/gap_makespan >= 0 for every run (a violation means the
+                         lower bound itself is wrong — investigate, don't silence), and writes one row per
+                         (instance, n_cranes, strategy, method) to a single CSV with columns total_cost/
+                         makespan/gap_work/gap_makespan/interference_wait/a7_reassignments/a7_violations.
+                         analysis/run_single_crane_full.py is the C=1-only counterpart (--dataset {lee,shin}).
         |
 analysis/analyze.py,        Consume the experiment CSV(s) into statistical tables (analyze.py, primary
 analysis/visualize_v2.py    metric gap_makespan) and figures (visualize_v2.py, 300 DPI).
 ```
 
-Key invariant exploited throughout the tests: **`MCEnv` with `n_cranes=1` must be numerically equivalent to the original `Env`** — this is the backward-compatibility contract that makes "zero-shot" claims valid. It holds to **0.00%** (not just "within a few %"): the extracted policy's action sequence and the simulator's cost accounting are both exact reproductions of the original at C=1. Checked in `tests/test_mcenv.py::test_mcenv_c1_episode_cost_identical_to_env` and at the start of every `experiment.py`/`run_full_experiment.py` run (`verify_backward_compatibility`).
+Key invariant exploited throughout the tests: **`MCEnv` with `n_cranes=1` must be numerically equivalent to the original `Env`** — this is the backward-compatibility contract that makes "zero-shot" claims valid. It holds to **0.00%** (not just "within a few %"): the extracted policy's action sequence and the simulator's cost accounting are both exact reproductions of the original at C=1. Checked in `tests/test_mcenv.py::test_mcenv_c1_episode_cost_identical_to_env` and at the start of every `analysis/run_multi_crane_full.py` run (`verify_backward_compatibility`, imported from `experiment.py`).
 
 ### Baselines
-`baselines/*.py` (lin2015, kim2016, leveling, durasevic2025, simple/advanced heuristics, lowerbound) are single-crane heuristics compared against the DRL policy. `baselines/multi_crane/multi_crane_baseline.py` re-implements each heuristic's *destination rule* (`LinDest`/`KimDest`/`LevelingDest`, the "restricted" variant matching assumption A3) and drives it through the identical `MCEnv` + `ZoneSplit` + timing-model protocol as ZeroShot via `run_mc_heuristic_episode()`, so Experiment 3 is a move-for-move fair comparison — it does NOT run the original single-crane episode and rescale its cost (an earlier, invalid version of this file did that). These filenames correspond to methods compared in the original Shin et al. paper (`1-s2.0-S0968090X25005005-main.pdf`): `lin2015.py`↔Lin, `kim2016.py`↔Kim, `leveling.py`↔the Zehendner et al. online-CRP heuristic, `durasevic2025.py`↔GP; the paper's own TS/GRASP/DRL1/DRL2 baselines are not reimplemented here.
+`baselines/*.py` (lin2015, kim2016, leveling, durasevic2025, simple/advanced heuristics, lowerbound) are single-crane heuristics compared against the DRL policy. `baselines/multi_crane/multi_crane_baseline.py` re-implements each heuristic's *destination rule* (`LinDest`/`KimDest`/`LevelingDest`, the "restricted" variant matching assumption A3) and drives it through the identical `MCEnv` + strategy + timing-model protocol as ZeroShot via `run_mc_heuristic_episode()`, so `analysis/run_multi_crane_full.py` is a move-for-move fair comparison — it does NOT run the original single-crane episode and rescale its cost (an earlier, invalid version of this file did that). These filenames correspond to methods compared in the original Shin et al. paper (`1-s2.0-S0968090X25005005-main.pdf`): `lin2015.py`↔Lin, `kim2016.py`↔Kim, `leveling.py`↔the Zehendner et al. online-CRP heuristic, `durasevic2025.py`↔GP; the paper's own TS/GRASP/DRL1/DRL2 baselines are not reimplemented here.
 
 ### Benchmark datasets (`benchmarks/`)
 Three distinct instance sources, not interchangeable:
